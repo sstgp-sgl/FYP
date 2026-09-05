@@ -1,0 +1,52 @@
+# Task-framework config for multi-view 3D point-cloud reconstruction.
+#
+# Layered over configs/default.yaml (which supplies shared `paths`, `vggt`
+# and `segment` blocks). Everything below overrides or extends that base.
+# No rendering (Gaussian/mesh) is involved — this pipeline stops at the PLY
+# point cloud + optional Viser inspection.
+
+# Where the pipeline writes its artifacts.
+output_dir: outputs/reconstruct
+
+# Reconstruction backend: "vggt" (GPU, facebook/VGGT-1B) or "dummy"
+# (synthetic sphere, for tests / dry-runs without a model).
+backend: vggt
+
+# Which VGGT branch to reconstruct from (overrides/inherits default.yaml):
+#   true  = pointmap branch (world_points) — globally consistent across views (best)
+#   false = unproject per-frame depth — noisier, cross-view inconsistent
+vggt:
+  use_point_map: true
+  # Pointmap confidence is 1+exp(x): a large fraction sits exactly at 1.0
+  # (no confidence). percentile < ~55 leaves the threshold at 1.0 (no-op).
+  # 65 drops the weakest points (threshold ≈ 2.3) without eating the subject.
+  conf_percentile: 65
+
+# --- input -------------------------------------------------------------
+# Where the multi-view images come from.
+#   mode=generated  use Zero123++ outputs/views (views.json)          [default]
+#   mode=folder     glob photos from a directory (multi-camera rig / turntable)
+#   mode=files      explicit list of image paths
+input:
+  mode: generated
+  folder: ""                 # used only when mode=folder
+  glob: "*"                  # glob pattern applied inside `folder`
+  files: []                  # used only when mode=files
+
+# --- preprocess --------------------------------------------------------
+# Square resize+pad normalizes mixed aspect ratios before reconstruction.
+preprocess:
+  enabled: true
+  size: 512
+  fill: [255, 255, 255]      # pad color (matches the white bg convention)
+  whiten_background: false   # only meaningful for Zero123++ generated views
+
+# --- visualization -----------------------------------------------------
+visualize:
+  port: 8080
+  # predictions = re-run VGGT + official demo_viser UI (run_viser_multi style)
+  # ply         = lightweight view of the exported pointcloud.ply + cameras
+  mode: predictions
+  init_conf_threshold: 25.0
+  use_point_map: true   # official demo: true = pointmap, false = depth+camera
+  drop_white: true      # zero confidence of near-white (background) pixels

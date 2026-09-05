@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Environments
+venv/
+.venv/
+env/
+conda-env/
+
+# Editors and system files
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Logs and caches
+*.log
+logs/
+cache/
+.cache/
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+checkpoints/
+pretrained_models/
+weights/
+
+# Datasets and generated outputs
+data/
+datasets/
+outputs/
+results/
+wandb/
