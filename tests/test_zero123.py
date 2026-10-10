@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from src.workflow import frame_subject, whiten_uniform_background
+from src.zero123 import frame_subject, whiten_uniform_background
 
 
 def test_frame_subject_letterboxes_without_squashing():

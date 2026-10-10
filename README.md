@@ -1,336 +1,155 @@
 # photo-to-mesh
 
-从**单张照片**或**多视角照片**出发，重建物体/人像的 **3D 点云**，并可进一步做网格、高斯泼溅渲染。
+通过一个 Web 页面完成：上传图片 → SAM2 分割主体 → Zero123++ 生成视角 → VGGT 重建点云。
+支持多个主体逐个重建，以及 **6 视图 / 7 视图** 两种 VGGT 输入模式。保留网页点云预览、PLY 下载和 Viser 查看。
 
-- 单图流水线：`01_segment → 02_generate_views → 03_vggt → 04_gaussian → 05_mesh`
-- 多主体流水线（FYP 主线）：`10_subjects_web → 11_generate_subject_views → 12_reconstruct_subjects`
-- 通用点云重建框架：`scripts/20_reconstruct.py`（只到点云，不含渲染）
-- Agent 学习路径（1–2 周，含可运行参考代码）：**`docs/AGENT_LEARNING.md`** + [`agent/`](agent/)
+## 启动
 
----
-
-## 1. 环境（服务器）
-
-| 项 | 值 |
-|----|----|
-| 服务器 | `connect.cqa1.seetacloud.com:20781`（AutoDL 别名 `autodl6`/`ulip`） |
-| 用户 | `root` |
-| GPU | NVIDIA RTX 4090 D 24GB |
-| 项目目录 | `/root/autodl-tmp/photo-to-mesh` |
-| VGGT 仓库 | `/root/autodl-tmp/vggt` |
-| SAM2 仓库 | `/root/autodl-tmp/sam2` |
-| Conda 环境 | `/root/miniconda3/envs/vggt`（Python 3.10，torch 2.3.1+cu121） |
-
-进入服务器后，推荐固定一个变量方便下面所有命令：
+当前项目在 `ulip:/root/autodl-tmp/photo-to-mesh`，使用现有 Conda 环境，无需先重新安装依赖。
+在服务器执行：
 
 ```bash
 cd /root/autodl-tmp/photo-to-mesh
-export PY=/root/miniconda3/envs/vggt/bin/python
+/root/miniconda3/envs/vggt/bin/python app.py --host 127.0.0.1 --port 7861
 ```
 
-依赖检查（应全部 `yes`）：
+本机另开终端建立转发：
 
 ```bash
-$PY -c "import torch,viser,trimesh,open3d,gsplat,diffusers,transformers,numpy,scipy,PIL,cv2; print('deps ok')"
+ssh -N -L 7861:127.0.0.1:7861 -L 8080:127.0.0.1:8080 ulip
 ```
 
-> 提示：HuggingFace 下载自动走镜像 `https://hf-mirror.com`（脚本里已 `setdefault`）。
+浏览器打开 `http://localhost:7861`。网页中的 Viser 按钮启动独立点云查看器，访问 `http://localhost:8080`。
+如果通过 AutoDL 自定义服务访问，可使用 `--host 0.0.0.0`，并在控制台映射对应端口。
 
----
+可覆盖配置文件或监听地址：
 
-## 2. 目录结构
-
+```bash
+/root/miniconda3/envs/vggt/bin/python app.py --config configs/default.yaml --port 7861
 ```
+
+该页面按单人操作、一次一个工作流设计。前台运行时按 Ctrl+C 停止服务。
+
+## 网页操作
+
+1. 上传图片，点击「添加主体」。
+2. 在画布上用左键标记前景、右键标记背景，或切换为框选；SAM2 返回候选掩码。可添加多个主体并分别命名。
+3. 选择合适的掩码候选，点击「保存全部」。修改主体或提示点后需重新保存。
+4. 选择 6 或 7 视图，点击「生成视角并重建」。页面显示每个主体的生成和重建进度。
+5. 完成后可在网页查看点云、下载 PLY，或打开 Viser 查看点云和相机坐标系。
+
+每次运行都会重新生成视角并执行 VGGT。同名主体的视角和重建结果会覆盖，比较两种模式时请先保存需要保留的结果。
+切换视图数量后直接重新运行即可；重新上传图片后必须重新选择并保存主体。
+
+## 6 视图与 7 视图
+
+| 模式 | VGGT 输入 | 配置默认值 |
+| --- | --- | --- |
+| 6 视图 | Zero123++ 生成的 `view_00.png` 到 `view_05.png` | `views.include_original: false` |
+| 7 视图 | 上述 6 张 + `view_06.png` 原始主体图 | `views.include_original: true` |
+
+Zero123++ 始终生成 6 张图。第 7 张来自 SAM2 白底主体图，经过主体包围盒裁剪和等比例补边，与 Zero123++ 的条件图保持相同构图；它不是额外生成的视角。
+
+网页选择覆盖本次运行的配置，不修改 YAML 文件。VGGT 严格按 `views.json` 读取 6 或 7 张图；切回 6 视图会移除当前主体目录里旧的 `view_06.png`，其他残留图片不会加入推理。
+
+## 项目结构
+
+```text
 photo-to-mesh/
-├── configs/
-│   ├── default.yaml        # 全流水线主配置（输入图、路径、vggt/segment 参数）
-│   └── reconstruct.yaml    # 新重建框架配置（叠加在 default.yaml 之上）
-├── scripts/
-│   ├── 01_segment.py               # 单图：SAM2 分割主体
-│   ├── 02_generate_views.py        # 单图：Zero123++ 生成 6 视角
-│   ├── 03_vggt.py                  # 单图：VGGT 多视图重建（旧，深度分支）
-│   ├── 04_gaussian.py              # 单图：COLMAP 导出 + 3DGS 训练
-│   ├── 05_mesh.py                  # 单图：Poisson 网格提取
-│   ├── 10_subjects_web.py          # 多主体：选择 + 工作流 Web
-│   ├── 11_generate_subject_views.py# 多主体：逐主体 Zero123++ 视角
-│   ├── 12_reconstruct_subjects.py  # 多主体：逐主体 VGGT 点云
-│   ├── 20_reconstruct.py           # ★ 通用点云重建任务框架 CLI
-│   ├── 21_view_ply.py              # Viser 点云查看器
-│   └── 22_drop_white.py            # 去白点工具
-├── agent/                   # Agent 学习参考实现（loop/tools/llm/...）
+├── app.py                     # 唯一 Web 启动入口
+├── configs/default.yaml       # 唯一运行配置
+├── requirements.txt           # 当前服务器的运行依赖版本
+├── requirements-dev.txt       # 运行依赖 + 测试依赖
+├── web/index.html             # SAM 交互、模式选择、进度和点云预览
 ├── src/
-│   ├── reconstruct/        # ★ 任务框架（task/pipeline/backends/tasks/viser）
-│   ├── workflow.py         # 多主体管线共享逻辑（11/12 与 Web 共用）
-│   ├── subjects.py         # Florence-2 + SAM2 多主体选择 + 导出
-│   ├── vggt_reconstruct.py # VGGT 推理（pointmap/depth 分支）+ 导出
-│   ├── pointcloud_filter.py# 点云过滤（置信度/离群点/背景色）
-│   ├── pointcloud_io.py    # ASCII PLY 读写 + cameras.json
-│   ├── segment.py          # SAM2 分割
-│   ├── colmap_export.py    # COLMAP 导出
-│   ├── gaussian_train.py   # 3DGS 训练
-│   └── mesh_extract.py     # 网格提取
-├── data/input/             # 输入照片
-├── outputs/                # 各阶段产物
-└── tests/                  # 单元测试
+│   ├── config.py              # 配置加载；相对路径以项目根目录为基准
+│   ├── server.py              # Web API、后台线程和 Viser 进程管理
+│   ├── segment.py             # SAM2 加载、提示分割和掩码处理
+│   ├── subjects.py            # 主体命名、掩码与白底图导出
+│   ├── zero123.py             # Zero123++、6/7 视图与视图清单
+│   ├── reconstruction.py      # 逐主体调用 VGGT、过滤和导出
+│   ├── vggt_reconstruct.py     # VGGT 模型加载与推理
+│   ├── pointcloud_filter.py   # 置信度、白色背景和离群点过滤
+│   ├── pointcloud_io.py       # PLY 与相机参数读写
+│   ├── viewer.py              # 网页按需启动的 Viser 模块
+│   └── io_utils.py            # JSON、视图清单和图像缩放
+├── tests/                     # SAM、视图切换、VGGT 与 Web 回归测试
+├── data/                      # 已有输入资料（不纳入 Git）
+└── outputs/                   # 生成结果（不纳入 Git）
 ```
 
----
+调用关系：`app.py → server.py → subjects/segment → zero123 → reconstruction → vggt_reconstruct`。
+点云过滤和导出由普通函数完成，不再使用任务注册表、可替换后端、DAG 或分阶段缓存。
 
-## 3. 完整流水线（单张照片 → 点云 → 网格）
+## 配置与模型
 
-### 阶段 1：分割主体（SAM2）
+所有配置集中在 `configs/default.yaml`，保留原 Web 的有效 VGGT 设置：pointmap 分支，置信度过滤百分位为 65。
+
+| 配置 | 用途 |
+| --- | --- |
+| `device` | 默认 `cuda` |
+| `image_size` | 主体和生成视角尺寸，默认 512 |
+| `seed` | Zero123++ 随机种子；多主体依次递增 |
+| `segment.sam2_checkpoint` | 本地 SAM2 权重 |
+| `segment.sam2_config` | SAM2 包内 Hydra 配置名，不是文件路径 |
+| `views.model` | `sudo-ai/zero123plus-v1.2` |
+| `views.num_inference_steps` | 默认 75 |
+| `views.include_original` | 网页初始模式，默认 7 视图 |
+| `vggt.model` | `facebook/VGGT-1B` |
+| `vggt.use_point_map` | 默认 `true`；仍可设为 `false` 使用深度分支 |
+| `vggt.conf_percentile` | 置信度过滤百分位，默认 65 |
+| `vggt.outlier_nb_neighbors` / `outlier_std_ratio` | 离群点过滤参数 |
+| `paths.subjects_dir` / `paths.views_dir` / `output_dir` | 输出位置 |
+| `server.host` / `server.port` | Web 默认监听地址和端口 |
+
+当前服务器使用：
+
+- Python：`/root/miniconda3/envs/vggt/bin/python`
+- SAM2 仓库：`/root/autodl-tmp/sam2`，已安装到现有环境。
+- SAM2 权重：`/root/autodl-tmp/sam2/checkpoints/sam2.1_hiera_large.pt`
+- VGGT 仓库：`/root/autodl-tmp/vggt`，由 `paths.vggt_repo` 指定。
+
+`requirements.txt` 记录现有运行环境的直接依赖版本；它不包含模型权重和本地模型仓库。
+迁移机器时需先准备适配 CUDA 的 PyTorch、SAM2 安装与权重、VGGT 仓库，再安装其余依赖并更新 YAML 中的绝对路径。
+Zero123++ 与 VGGT 首次使用时可能下载模型；默认设置 `HF_ENDPOINT=https://hf-mirror.com`，可通过环境变量覆盖。
+网页内 Three.js 点云预览使用 jsDelivr CDN；无法访问 CDN 时可下载 PLY 或使用 Viser。
+
+## 输出
+
+```text
+outputs/
+├── subjects/
+│   ├── subjects.json
+│   └── <主体名>/mask.png, subject.png
+├── views/
+│   ├── subjects_index.json
+│   └── <主体名>/views.json, grid_raw.png, view_00.png …
+└── reconstruct/
+    ├── <主体名>/pointcloud.ply, cameras.json, stats.json, predictions.npz
+    └── viser_<主体名>.log
+```
+
+`stats.json` 记录输入视图数量、是否包含原图及点云过滤统计。`predictions.npz` 保存原始推理输出。
+旧 `outputs/` 中的结果与 `.tasks` 缓存保留在磁盘上；新程序不再读取旧任务缓存。
+
+## 验证
 
 ```bash
-$PY scripts/01_segment.py
+cd /root/autodl-tmp/photo-to-mesh
+OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  /root/miniconda3/envs/vggt/bin/python -m pytest -q
 ```
 
-- 输入：`configs/default.yaml` 的 `paths.input_image`
-- 输出：`outputs/foreground/foreground.png`（带 alpha 的主体）、`mask.png`、`normalized.png`
+测试包括 SAM 掩码处理、生成视图构图、7→6 视图切换、视图清单校验、VGGT 输出与过滤，以及 Web 上传/分割/保存/重建/下载接口。
+测试使用模型替身，不下载权重、不执行真实模型推理；不能替代真实图片的 GPU 重建质量检查。
 
-### 阶段 2：生成 6 视角（Zero123++）
+本次整理验证了 30 项测试、前端 JavaScript 语法，以及真实 Web 进程的首页和配置接口（HTTP 200）。检查时 `torch.cuda.is_available()` 返回 `False`；运行默认 CUDA 模式的模型推理前，需要先恢复该实例的 GPU 可用性。
 
-```bash
-$PY scripts/02_generate_views.py
-```
+## 本次精简
 
-- 输入：`outputs/foreground/foreground.png`
-- 输出：`outputs/views/view_00.png` … `view_05.png`、`views.json`、`grid_raw.png`
+已移除旧编号脚本、通用任务框架、Agent 学习示例、Florence 文字检测、COLMAP、Gaussian 和网格生成代码。
+旧启动命令改为 `app.py`；相关配置和文档统一到本文件。原有输入图片、模型仓库、权重和历史输出保留。
 
-### 阶段 3：VGGT 多视图重建（旧版，深度分支）
-
-```bash
-$PY scripts/03_vggt.py
-```
-
-- 输入：`outputs/views/`
-- 输出：`outputs/vggt/pointcloud.ply`、`cameras.json`、`stats.json`、`predictions.npz`
-
-> ⚠️ 旧版 `03_vggt.py` 用「深度反投影」方式，跨视角一致性差（人脸会杂乱）。
-> **推荐用第 4 节的新框架（pointmap 分支）替代。**
-
-### 阶段 4：3D 高斯泼溅（渲染，可选）
-
-```bash
-$PY scripts/04_gaussian.py
-```
-
-- 输入：`outputs/vggt/pointcloud.ply` + `cameras.json`
-- 输出：`outputs/gaussian/gaussians.pt`、`orbit/` 新视角帧
-
-### 阶段 5：表面网格（可选）
-
-```bash
-$PY scripts/05_mesh.py
-```
-
-- 输入：`outputs/vggt/pointcloud.ply`
-- 输出：`outputs/mesh/mesh.ply`
-
----
-
-## 4. 新点云重建任务框架（推荐，只到点云）
-
-```bash
-# 查看所有任务
-$PY scripts/20_reconstruct.py list
-
-# 完整重建（默认：6 张生成视图 + VGGT pointmap 分支）
-$PY scripts/20_reconstruct.py run
-
-# 交互查看点云
-$PY scripts/20_reconstruct.py visualize --mode ply          # 轻量：直接显示已导出的 PLY
-$PY scripts/20_reconstruct.py visualize --mode predictions  # 官方 UI：重新推理 + 置信度滑杆/逐帧/相机锥体
-```
-
-流水线：`collect → preprocess → reconstruct → filter → export`
-
-- 输出目录：`outputs/reconstruct/`
-  - `pointcloud.ply` — 最终点云
-  - `cameras.json` — 每个视角的外参/内参
-  - `stats.json` — 过滤统计
-  - `.tasks/reconstruct/predictions.npz` — 未过滤的原始点/色/置信度（调参用，无需重跑推理）
-
-### 常用参数（`configs/reconstruct.yaml`）
-
-| 参数 | 默认 | 说明 |
-|------|------|------|
-| `backend` | `vggt` | `vggt`（真实）/ `dummy`（无 GPU 冒烟测试） |
-| `vggt.use_point_map` | `true` | **核心**：`true`=pointmap 分支（全局一致，效果好）；`false`=深度反投影（旧、差） |
-| `vggt.conf_percentile` | `65` | 置信度过滤百分位；pointmap 下 <55 基本无效 |
-| `vggt.outlier_std_ratio` | `2.0` | 统计离群点强度 |
-| `visualize.mode` | `predictions` | `predictions` / `ply` |
-| `input.mode` | `generated` | `generated` / `folder` / `files` |
-
-> 改完参数重跑要加 `--force`（框架按输出文件是否存在做缓存）。
-
----
-
-## 5. 换一张照片
-
-### 5.1 单张照片 → 自动生成 6 视角
-
-```bash
-# 1) 把新照片放到 data/input/
-# 2) 改 configs/default.yaml
-paths:
-  input_image: data/input/你的照片.png
-
-# 3) 重新分割 + 生成视角（必须都跑）
-$PY scripts/01_segment.py
-$PY scripts/02_generate_views.py
-
-# 4) 重建点云
-$PY scripts/20_reconstruct.py run --force
-```
-
-### 5.2 已有多张同物体不同角度的照片
-
-```bash
-# 1) 照片放进一个目录，如 data/photos/
-# 2) 改 configs/reconstruct.yaml
-input:
-  mode: folder
-  folder: data/photos
-  glob: "*"
-
-# 3) 直接重建
-$PY scripts/20_reconstruct.py run --force
-```
-
----
-
-## 6. 可视化（Viser）
-
-框架内置两种：
-
-```bash
-# 轻量：显示 pointcloud.ply + 相机坐标系
-$PY scripts/20_reconstruct.py visualize --mode ply --port 8080
-
-# 官方 UI（run_viser_multi 同款）：逐帧点云选择 + 置信度滑杆 + 相机锥体跳转
-$PY scripts/20_reconstruct.py visualize --mode predictions --port 8080
-```
-
-服务器上运行后，有两种方式在浏览器打开：
-
-1. **本机 SSH 隧道**（端口转发）：
-   ```bash
-   ssh -N -L 8080:127.0.0.1:8080 autodl6
-   # 浏览器打开 http://localhost:8080
-   ```
-2. **AutoDL 自定义服务**：控制台 → 自定义服务 → 内部端口 `8080` → 用生成的公网 URL 打开。
-
-Viser 旧版官方脚本（直接跑 VGGT 仓库里的）：
-
-```bash
-cd /root/autodl-tmp/vggt
-python run_viser_multi.py --image-folder <多图文件夹> --use-point-map --port 8080
-```
-
----
-
-## 7. 调参 / 调试
-
-### 只调过滤、不重跑推理
-
-直接读未过滤的 `predictions.npz`，扫不同 `conf_percentile`：
-
-```bash
-$PY - <<'PY'
-import numpy as np, sys; sys.path.insert(0, '/root/autodl-tmp/photo-to-mesh')
-from src.pointcloud_filter import filter_pointcloud
-d = np.load('outputs/reconstruct/.tasks/reconstruct/predictions.npz')
-for p in [55, 65, 70, 80]:
-    cfg = {"vggt": {"conf_percentile": p, "outlier_nb_neighbors": 20,
-                    "outlier_std_ratio": 2.0, "drop_fill_color": True,
-                    "fill_color_slack": 8}, "segment": {"background_gray": 255}}
-    _, _, st = filter_pointcloud(d['points'], d['colors'], d['conf'], cfg)
-    print(p, st['num_points_filtered'])
-PY
-```
-
-### 看置信度分布
-
-```bash
-$PY - <<'PY'
-import numpy as np
-c = np.load('outputs/reconstruct/.tasks/reconstruct/predictions.npz')['conf']
-print('min/max:', c.min(), c.max(), ' frac==1.0:', float((c <= 1.0001).mean()))
-for p in [50, 60, 70, 80, 90, 95, 99]:
-    print(p, round(float(np.percentile(c, p)), 4))
-PY
-```
-
-### 去白点（旧流水线产物）
-
-```bash
-$PY scripts/22_drop_white.py --slack 8
-```
-
----
-
-## 8. 交互式多主体选择（Florence-2 + SAM2，新）
-
-在浏览器里**用文字检测物体、再用鼠标点选/框选微调**，导出每个主体的掩码和白底抠图：
-
-```bash
-$PY scripts/10_subjects_web.py --port 7861
-# 浏览器打开 http://127.0.0.1:7861
-```
-
-- 上传油画 → 输入如 `a horse, a woman` → Florence-2 自动出框
-- 画布上左键=正点、右键=负点、拖拽=框选，SAM2 实时出掩码（3 个候选可选）
-- 每个主体可命名、增删；「保存全部」写出：
-  - `outputs/subjects/<name>/mask.png`（掩码）
-  - `outputs/subjects/<name>/subject.png`（白底抠图，可直接喂 Zero123++）
-  - `outputs/subjects/subjects.json`（prompts + coverage 记录）
-
-> 首次文字检测会下载 Florence-2（~0.7GB，走 hf-mirror）；服务器已装好 timm，
-> 并用 flash-attn stub + eager attention 免去编译 flash-attn。
-
-### 8.1 下游：每主体独立生成视角 + 点云重建（CLI 或网页一体化）
-
-**方式一：网页一体化（推荐）** —— 网页第 4 步点「▶ 运行工作流」：
-
-- 网页实时显示每个主体的进度：生成视角(11) → 点云重建(12) → 完成/失败
-- 中间产物（7 张视角缩略图：6 生成 + 1 原图锚点）直接在网页展示
-- 完成后点「🔍 查看点云」→ 网页内嵌 Three.js 查看器（拖拽旋转/滚轮缩放）
-
-**方式二：CLI**
-
-```bash
-$PY scripts/11_generate_subject_views.py   # 每主体 7 视角（6 生成 + 1 原图）→ outputs/views/<subject>/
-$PY scripts/12_reconstruct_subjects.py     # 每主体点云 → outputs/reconstruct/<subject>/
-```
-
-> 注意：逐主体流程**不用 `03_vggt.py`**（那是旧的整图深度分支管线）。
-> 两套方式共享同一套代码（`src/workflow.py`），进度/结果一致。
-
-后续每主体 3DGS：把该主体的 views + pointcloud 交给
-`scripts/04_gaussian.py`（即 FYP 的「每主体独立 Gaussian 模型」）。
-
----
-
-## 9. 测试
-
-```bash
-$PY -m pytest tests/test_reconstruct_framework.py tests/test_vggt_reconstruct.py -v
-$PY -m pytest tests/test_subjects.py -v
-```
-
-- `test_reconstruct_framework.py`：任务框架（dummy 后端，无需 GPU/torch）
-- `test_vggt_reconstruct.py`：VGGT 推理 mock（pointmap/depth 分支形状）
-- `test_subjects.py`：多主体选择纯函数（命名/白底合成/掩码编码）
-
----
-
-## 10. 常见问题
-
-| 问题 | 解决 |
-|------|------|
-| 换照片后点云没变 | 没重跑 `02_generate_views.py`，或没加 `--force` |
-| `list_view_images` 报缺文件 | `outputs/views/view_*.png` 不完整，重跑阶段 2 |
-| 点云脸部杂乱 | 确认 `vggt.use_point_map: true`；调高 `conf_percentile`（65→70/80） |
-| 有大片白板 | 白底被反投影，跑 `22_drop_white.py` 或确认 `drop_fill_color` 生效 |
-| Viser 打不开 | 服务器上 `curl http://127.0.0.1:8080` 应返回 200；再检查隧道/自定义服务 |
-| 显存不足 | 减少视图数，或换更小分辨率（`preprocess.size`） |
+改动前源码备份：
+`/root/autodl-tmp/project-backups/photo-to-mesh-before-web-cleanup-20261010-153030.tar.gz`。
+Git 历史也保留了旧实现。

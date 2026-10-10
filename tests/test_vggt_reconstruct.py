@@ -6,7 +6,8 @@ import pytest
 import torch
 from PIL import Image
 
-from src.vggt_reconstruct import filter_pointcloud, run_vggt
+from src.vggt_reconstruct import run_vggt
+from src.pointcloud_filter import filter_pointcloud
 
 
 class _MockVGGT:
@@ -156,7 +157,7 @@ def test_filter_drops_pure_white_points():
     assert stats["num_points_after_white"] == 40
 
 
-def test_filter_drops_pure_black_points():
+def test_filter_preserves_black_subject_texture_on_white_background():
     n = 10
     points = np.zeros((n, 3), dtype=np.float64)
     points[:, 0] = np.arange(n)
@@ -171,6 +172,6 @@ def test_filter_drops_pure_black_points():
         }
     }
     f_pts, f_cols, stats = filter_pointcloud(points, colors, conf, cfg)
-    assert len(f_pts) == 7
-    assert not np.all(f_cols == 0, axis=1).any()
-    assert stats["num_points_filtered"] == 7
+    assert len(f_pts) == 10
+    assert np.all(f_cols == 0, axis=1).sum() == 3
+    assert stats["num_points_filtered"] == 10

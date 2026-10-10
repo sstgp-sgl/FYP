@@ -1,4 +1,4 @@
-"""Tests for 03b VGGT Viser diagnostic (views only, no foreground)."""
+"""View manifest ordering and extra-file exclusion."""
 from __future__ import annotations
 
 import json

@@ -1,10 +1,4 @@
-"""Torch/trimesh-free point-cloud IO: ASCII PLY read/write + cameras JSON.
-
-The reconstruction task framework writes/reads its own PLY so it does not
-depend on trimesh (which is not installed on every host). The format is the
-standard ASCII PLY with ``x/y/z`` float vertices and ``red/green/blue`` uchar
-colors, which tools like MeshLab/CloudCompare/Viser read without issue.
-"""
+"""ASCII PLY read/write and VGGT camera serialization."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -100,7 +94,7 @@ def read_ply(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
 
 
 def cameras_to_json(extrinsic, intrinsic, image_paths, views_meta=None) -> dict:
-    """Serialize camera matrices into the stage-3 cameras.json shape."""
+    """Serialize camera matrices into the cameras.json format."""
     cameras = []
     for i, img_path in enumerate(image_paths):
         entry = {

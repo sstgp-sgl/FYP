@@ -7,9 +7,6 @@ from pathlib import Path
 import numpy as np
 import torch
 
-# Filtering helpers live in a torch-free module so other consumers (the
-# reconstruction task framework) can use them without importing torch.
-from src.pointcloud_filter import fill_color_mask, filter_pointcloud  # noqa: F401
 
 
 def _ensure_vggt_on_path(vggt_repo: str | Path) -> None:
@@ -124,43 +121,4 @@ def run_vggt(image_paths: list[str], cfg: dict, model=None, use_point_map: bool 
         "intrinsic": intrinsic,
         "image_paths": paths,
         "use_point_map": use_point_map,
-    }
-
-
-def export_pointcloud_ply(points, colors, path: str | Path) -> None:
-    """Write a colored point cloud as PLY via trimesh."""
-    import trimesh
-
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pcd = trimesh.PointCloud(vertices=np.asarray(points), colors=np.asarray(colors))
-    pcd.export(str(path))
-
-
-def cameras_to_json(extrinsic, intrinsic, image_paths, views_meta=None) -> dict:
-    """Serialize camera matrices for cameras.json (and COLMAP hook notes)."""
-    cameras = []
-    for i, img_path in enumerate(image_paths):
-        entry = {
-            "index": i,
-            "file": Path(img_path).name,
-            "extrinsic": np.asarray(extrinsic[i]).tolist(),
-            "intrinsic": np.asarray(intrinsic[i]).tolist(),
-        }
-        if views_meta and i < len(views_meta):
-            entry["azimuth"] = views_meta[i].get("azimuth")
-            entry["elevation"] = views_meta[i].get("elevation")
-        cameras.append(entry)
-    return {
-        "cameras": cameras,
-        # Hook for stage 4 (gsplat): optionally place COLMAP sparse/ under vggt_dir.
-        "colmap_export": {
-            "enabled": False,
-            "relative_dir": "sparse",
-            "note": (
-                "Set enabled=true and emit COLMAP cameras.bin/images.bin/points3D.bin "
-                "under outputs/vggt/sparse/ for gsplat simple_trainer "
-                "(see scripts/04_gaussian.py)."
-            ),
-        },
     }

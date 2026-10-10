@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>多主体选择器 · Florence-2 + SAM2 + 工作流</title>
+<title>Photo to Mesh · SAM2 + Zero123++ + VGGT</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "PingFang SC", sans-serif; background: #1e1f22; color: #ddd; }
@@ -49,29 +49,30 @@
   </div>
   <div id="right">
     <div class="card">
-      <h3>1 · 上传油画</h3>
+      <h3>1 · 上传图片</h3>
       <input type="file" id="file" accept="image/*">
     </div>
     <div class="card">
-      <h3>2 · 文字检测物体</h3>
-      <div class="row">
-        <input type="text" id="texts" placeholder='逗号分隔，如: a horse, a woman'>
-        <button id="detectBtn">检测</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>3 · 主体列表（点击选中，画布上微调）</h3>
+      <h3>2 · 添加主体，用点选或框选生成掩码</h3>
+      <button id="addBtn">＋ 添加主体</button>
+      <p style="font-size:12px;color:#aaa">先添加主体，再用左键标记主体、右键排除背景，或切换框选模式。</p>
       <div id="subjects"></div>
     </div>
     <button id="saveBtn">保存全部 → subjects.json</button>
     <div class="card">
-      <h3>4 · 工作流：视角生成 + 点云重建</h3>
+      <h3>3 · Zero123++ 生成视角 → VGGT 重建</h3>
       <div class="row">
-        <button id="wfBtn" style="flex:1">▶ 运行工作流 (生成视角 + 重建，强制重跑)</button>
+        <label>VGGT 输入：<select id="viewCount">
+          <option value="7">7 视图：6 张生成图 + 原始主体图</option>
+          <option value="6">6 视图：仅生成图</option>
+        </select></label>
+      </div>
+      <div class="row">
+        <button id="wfBtn" style="flex:1">▶ 生成视角并重建</button>
       </div>
       <div id="wfSubjects" style="margin-top:8px;"></div>
     </div>
-    <div id="status">提示：先上传图片；检测结果会成为主体，点击主体行选中后在画布上微调。</div>
+    <div id="status">提示：上传图片 → 添加主体 → SAM2 点选/框选 → 保存全部 → 选择 6/7 视图并运行。</div>
   </div>
 </div>
 
@@ -94,9 +95,20 @@ let scale = 1;
 let subjects = [];
 let activeIdx = -1;
 let dragging = false, dragStart = null, dragEnd = null;
+let workflowRunning = false;
+let subjectsSaved = false;
+fetch("/api/config").then(r => r.json()).then(j => { $("viewCount").value = String(j.view_count); });
+function setWorkflowRunning(running) {
+  workflowRunning = running;
+  for (const id of ["file", "addBtn", "saveBtn", "segBtn", "clearBtn", "wfBtn", "viewCount"])
+    $(id).disabled = running;
+  $("subjects").style.pointerEvents = running ? "none" : "auto";
+}
 
 // ---------------- upload ----------------
 $("file").addEventListener("change", async (e) => {
+  if (!e.target.files.length) return;
+  subjectsSaved = false;
   const fd = new FormData();
   fd.append("file", e.target.files[0]);
   $("status").textContent = "上传中...";
@@ -127,7 +139,8 @@ function toImageXY(e) {
 }
 
 canvas.addEventListener("mousedown", (e) => {
-  if (!imageInfo || activeIdx < 0) return;
+  if (!imageInfo || activeIdx < 0 || workflowRunning) return;
+  subjectsSaved = false;
   e.preventDefault();
   const [x, y] = toImageXY(e);
   const s = subjects[activeIdx];
@@ -158,14 +171,14 @@ canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!imageInfo) return;
+  if (!imageInfo || !imgEl.complete || !imgEl.naturalWidth) return;
   ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
   subjects.forEach((s, i) => {
     ctx.lineWidth = 2;
     ctx.strokeStyle = i === activeIdx ? "#ffd54f" : "#ff5252";
     s.boxes.forEach((b) => ctx.strokeRect(b[0]*scale, b[1]*scale, (b[2]-b[0])*scale, (b[3]-b[1])*scale));
     s.points.forEach((p, k) => {
-      ctx.fillStyle = (s.labels[k] || 1) === 0 ? "#2979ff" : "#69f0ae";
+      ctx.fillStyle = (s.labels[k] ?? 1) === 0 ? "#2979ff" : "#69f0ae";
       ctx.beginPath(); ctx.arc(p[0]*scale, p[1]*scale, 4, 0, Math.PI*2); ctx.fill();
     });
     const idx = s.maskIdx >= 0 ? s.maskIdx : 0;
@@ -195,29 +208,19 @@ async function segmentActive() {
   const j = await r.json();
   if (j.error) { $("status").textContent = "分割失败: " + j.error; return; }
   s.scores = j.scores;
-  s.maskImgs = j.masks.map((b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; return im; });
+  s.maskImgs = j.masks.map((b64) => { const im = new Image(); im.onload = draw; im.src = "data:image/png;base64," + b64; return im; });
   if (s.maskIdx < 0) s.maskIdx = s.scores.indexOf(Math.max(...s.scores));
   $("status").textContent = "掩码分数: " + s.scores.map(v => v.toFixed(3)).join(", ") + " → 用候选 " + s.maskIdx;
   renderSubjects(); draw();
 }
 
-// ---------------- detect ----------------
-$("detectBtn").addEventListener("click", async () => {
+// ---------------- manual subject selection ----------------
+$("addBtn").addEventListener("click", () => {
   if (!imageInfo) { $("status").textContent = "请先上传图片"; return; }
-  const texts = $("texts").value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
-  if (!texts.length) { $("status").textContent = "输入检测文字"; return; }
-  $("status").textContent = "Florence-2 检测中...（首次运行需下载模型）";
-  const r = await fetch("/api/detect", { method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ texts }) });
-  const j = await r.json();
-  if (j.error) { $("status").textContent = "检测失败: " + j.error; return; }
-  if (!j.boxes.length) { $("status").textContent = "未检测到物体，换个说法试试"; return; }
-  j.boxes.forEach((b) => {
-    const name = b.label.replace(/[^\w\u4e00-\u9fff]+/g, "_") || "subject";
-    subjects.push({ name, boxes: [b.box], points: [], labels: [], maskIdx: -1, maskImgs: null, scores: [] });
-  });
+  subjectsSaved = false;
+  subjects.push({ name: "subject_" + (subjects.length + 1), boxes: [], points: [], labels: [], maskIdx: -1, maskImgs: null, scores: [] });
   activeIdx = subjects.length - 1;
-  $("status").textContent = "检测到 " + j.boxes.length + " 个物体，已加入列表；点击主体行后在画布上微调";
+  $("status").textContent = "已添加主体；请在画布上点选或框选，再保存主体。";
   renderSubjects(); draw();
 });
 
@@ -230,33 +233,38 @@ function renderSubjects() {
     div.className = "subject" + (i === activeIdx ? " active" : "");
     div.innerHTML = `
       <div class="row">
-        <input type="text" value="${s.name}" title="名称">
+        <input type="text" title="名称">
         <select title="掩码候选">${[0,1,2].map(k =>
           `<option value="${k}" ${k === s.maskIdx ? "selected" : ""}>候选${k}</option>`).join("")}</select>
         <button class="del">删除</button>
       </div>`;
-    div.querySelector("input").addEventListener("input", (e) => { s.name = e.target.value; });
-    div.querySelector("select").addEventListener("change", (e) => { s.maskIdx = +e.target.value; draw(); });
+    div.querySelector("input").value = s.name;
+    div.querySelector("input").addEventListener("input", (e) => { s.name = e.target.value; subjectsSaved = false; });
+    div.querySelector("select").addEventListener("change", (e) => { s.maskIdx = +e.target.value; subjectsSaved = false; draw(); });
     div.querySelector(".del").addEventListener("click", () => {
+      subjectsSaved = false;
       subjects.splice(i, 1);
       activeIdx = subjects.length ? Math.min(activeIdx, subjects.length - 1) : -1;
       renderSubjects(); draw();
     });
-    div.addEventListener("click", () => { activeIdx = i; renderSubjects(); draw(); });
+    div.addEventListener("click", () => { if (activeIdx !== i) { activeIdx = i; renderSubjects(); draw(); } });
     box.appendChild(div);
   });
-  if (!subjects.length) box.innerHTML = "<div style='font-size:12px;color:#888'>还没有主体。用文字检测或手动加一个。</div>";
+  if (!subjects.length) box.innerHTML = "<div style='font-size:12px;color:#888'>还没有主体。点击「添加主体」开始。</div>";
 }
 
 $("segBtn").addEventListener("click", segmentActive);
 $("clearBtn").addEventListener("click", () => {
   const s = subjects[activeIdx];
-  if (s) { s.boxes = []; s.points = []; s.labels = []; draw(); $("status").textContent = "已清空当前主体提示"; }
+  if (s) { subjectsSaved = false; s.boxes = []; s.points = []; s.labels = []; s.maskImgs = null; s.maskIdx = -1; draw(); $("status").textContent = "已清空当前主体提示"; }
 });
 
 // ---------------- save ----------------
 $("saveBtn").addEventListener("click", async () => {
   if (!subjects.length) { $("status").textContent = "没有主体可保存"; return; }
+  if (subjects.some(s => !s.points.length && !s.boxes.length)) {
+    $("status").textContent = "请为每个主体至少标记一个点或框"; return;
+  }
   $("status").textContent = "保存中...（逐个重跑 SAM2）";
   const payload = subjects.map((s) => ({
     name: s.name, boxes: s.boxes, points: s.points, labels: s.labels, mask_index: s.maskIdx,
@@ -265,19 +273,21 @@ $("saveBtn").addEventListener("click", async () => {
     body: JSON.stringify({ subjects: payload }) });
   const j = await r.json();
   if (j.error) { $("status").textContent = "保存失败: " + j.error; return; }
+  subjectsSaved = true;
   $("status").textContent = "已保存:\n" + j.subjects.map(s =>
     `• ${s.name} (coverage ${(s.coverage*100).toFixed(1)}%) → ${s.subject_file}`).join("\n");
 });
 
-// ---------------- workflow (02b + 02c) ----------------
+// ---------------- workflow ----------------
 let wfTimer = null;
 $("wfBtn").addEventListener("click", async () => {
-  // force=true: views are always regenerated; without this, reconstruction
-  // would skip on cached .tasks even after the 7th view appeared.
-  const r = await fetch("/api/workflow/start?force=true", { method: "POST" });
+  if (!subjectsSaved) { $("status").textContent = "请先保存当前主体"; return; }
+  const viewCount = $("viewCount").value;
+  const r = await fetch("/api/workflow/start?view_count=" + viewCount, { method: "POST" });
   const j = await r.json();
   if (j.error) { $("status").textContent = j.error; return; }
-  $("status").textContent = "工作流已启动（生成视角 → 点云重建）...";
+  setWorkflowRunning(true);
+  $("status").textContent = "工作流已启动：" + j.view_count + " 视图重建...";
   if (wfTimer) clearInterval(wfTimer);
   wfTimer = setInterval(pollWorkflow, 1500);
   pollWorkflow();
@@ -319,9 +329,11 @@ async function pollWorkflow() {
     });
   });
   if (j.status === "done") {
-    $("status").textContent = "✅ 工作流完成";
+    setWorkflowRunning(false);
+    $("status").textContent = "✅ " + j.view_count + " 视图重建完成";
     clearInterval(wfTimer); wfTimer = null;
   } else if (j.status === "error") {
+    setWorkflowRunning(false);
     $("status").textContent = "❌ 工作流失败: " + j.error;
     clearInterval(wfTimer); wfTimer = null;
   } else if (j.status === "running") {
@@ -367,6 +379,7 @@ async function showPointcloud(subject) {
   if (typeof THREE === "undefined") { $("status").textContent = "Three.js 加载失败（CDN 不可达）"; return; }
   ensureViewer();
   $("viewerModal").style.display = "flex";
+  resizeViewer();
   $("viewerTitle").textContent = "点云: " + subject + "（加载中…）";
   const j = await (await fetch("/api/pointcloud/" + subject)).json();
   if (j.error) { $("viewerTitle").textContent = "无点云: " + j.error; return; }
@@ -378,7 +391,7 @@ async function showPointcloud(subject) {
   geo.setAttribute("position", new THREE.BufferAttribute(pts, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(colf, 3));
   const mat = new THREE.PointsMaterial({ size: 0.012, vertexColors: true, sizeAttenuation: true });
-  if (vPts) vScene.remove(vPts);
+  if (vPts) { vScene.remove(vPts); vPts.geometry.dispose(); vPts.material.dispose(); }
   vPts = new THREE.Points(geo, mat);
   vScene.add(vPts);
   $("viewerTitle").textContent = `点云: ${subject} — ${j.num_shown.toLocaleString()} / ${j.num_total.toLocaleString()} 点（拖拽旋转，滚轮缩放）`;

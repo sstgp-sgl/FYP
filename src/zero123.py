@@ -1,18 +1,7 @@
-"""Shared per-subject pipeline logic: views (Zero123++) + reconstruction (VGGT).
-
-Used by:
-  - scripts/11_generate_subject_views.py   (CLI)
-  - scripts/12_reconstruct_subjects.py     (CLI)
-  - scripts/10_subjects_web.py             (web workflow, progress callbacks)
-
-``progress`` callbacks receive (idx, total, stage, name, info) where stage is
-"views" or "reconstruct" and info carries {"status": running|done|error, ...}.
-"""
+"""Zero123++ view generation, subject framing and six/seven-view manifests."""
 from __future__ import annotations
 
-import io
 import os
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -188,6 +177,9 @@ def generate_subject_views(
             {"file": "view_06.png", "azimuth": 0, "elevation": 0, "source": "original"}
         )
         print(f"[subject] {name}: original input added as view_06 (azimuth 0, elevation 0)")
+    else:
+        # A previous seven-view run must not leak its anchor into six-view mode.
+        (out_dir / "view_06.png").unlink(missing_ok=True)
     from src.io_utils import save_json
 
     save_json(meta, out_dir / "views.json")
@@ -259,55 +251,3 @@ def generate_views_for_subjects(
 
     save_json({"subjects": index}, views_root / "subjects_index.json")
     return index
-
-
-def reconstruct_subjects(
-    index_doc: dict,
-    base_out: str | Path,
-    cfg: dict,
-    progress=None,
-    force: bool = False,
-    stop_on_error: bool = True,
-) -> None:
-    """Loop subjects through the reconstruction framework (pointmap)."""
-    from src.reconstruct import Pipeline, TaskContext, get_task
-
-    pipeline = Pipeline(
-        [get_task(n) for n in ("collect", "preprocess", "reconstruct", "filter", "export")]
-    )
-    subjects = index_doc.get("subjects", [])
-    base_out = Path(base_out)
-
-    for i, s in enumerate(subjects):
-        name = s["name"]
-        if progress:
-            progress(i, len(subjects), "reconstruct", name, {"status": "running"})
-        buf = io.StringIO()
-        sub_cfg = dict(cfg)
-        sub_cfg["output_dir"] = str(base_out / name)
-        sub_cfg["input"] = {
-            "mode": "folder",
-            "folder": s["views_dir"],
-            "glob": "view_*.png",
-        }
-        ctx = TaskContext(
-            cfg=sub_cfg,
-            workdir=Path(sub_cfg["output_dir"]) / ".tasks",
-            force=force,
-        )
-        try:
-            with redirect_stdout(buf):
-                pipeline.run(ctx)
-            if progress:
-                progress(
-                    i, len(subjects), "reconstruct", name,
-                    {"status": "done", "log": buf.getvalue()},
-                )
-        except Exception as e:  # noqa: BLE001
-            if progress:
-                progress(
-                    i, len(subjects), "reconstruct", name,
-                    {"status": "error", "error": str(e), "log": buf.getvalue()},
-                )
-            if stop_on_error:
-                raise

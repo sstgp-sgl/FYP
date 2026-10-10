@@ -1,11 +1,4 @@
-"""Interactive multi-subject selection for oil paintings.
-
-Text proposal (Florence-2 open-vocabulary detection) + SAM2 prompt refinement
-(points/boxes) → named subject masks → per-subject cut-outs ready for the
-per-subject reconstruction pipeline (Zero123++ / 3DGS).
-
-Florence-2 and SAM2 are imported lazily so importing this module stays cheap.
-"""
+"""Named SAM2 subjects, masks and white-background cut-outs."""
 from __future__ import annotations
 
 import json
@@ -16,7 +9,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-_TASK = "<OPEN_VOCABULARY_DETECTION>"
 
 
 @dataclass
@@ -33,56 +25,6 @@ def sanitize_name(name: str) -> str:
     """Make a filesystem-safe subject name."""
     name = re.sub(r"[^\w\u4e00-\u9fff-]+", "_", (name or "subject").strip()).strip("_")
     return name or "subject"
-
-
-# ---------------------------------------------------------------- Florence-2
-def load_florence(model_id: str = "microsoft/Florence-2-base", device: str = "cuda"):
-    """Load Florence-2 (lazy, ~0.7GB on first download). Returns (model, processor)."""
-    import os
-
-    os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-    from transformers import AutoModelForCausalLM, AutoProcessor
-
-    print(f"[florence] loading {model_id} ...")
-    # attn_implementation="eager" avoids needing real flash-attn (a stub package
-    # satisfies transformers' static import check; eager never calls it).
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id, trust_remote_code=True, attn_implementation="eager"
-    )
-    model = model.to(device).eval()
-    processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-    return model, processor
-
-
-def detect_boxes(florence, texts: list[str], image: Image.Image) -> list[dict]:
-    """Open-vocabulary detection: texts → [{"label", "box": [x0,y0,x1,y1]}].
-
-    Categories are appended to the task prompt (comma-separated). Returns [] if
-    nothing is detected (an empty result raises for retry-free UX upstream).
-    """
-    import torch
-
-    model, processor = florence
-    prompt = _TASK + ", ".join(t for t in texts if t)
-    inputs = processor(text=prompt, images=image, return_tensors="pt")
-    device = next(model.parameters()).device
-    with torch.no_grad():
-        generated_ids = model.generate(
-            input_ids=inputs["input_ids"].to(device),
-            pixel_values=inputs["pixel_values"].to(device),
-            max_new_tokens=1024,
-            num_beams=3,
-        )
-    text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-    parsed = processor.post_process_generation(
-        text, task=_TASK, image_size=image.size
-    )
-    det = parsed.get(_TASK, {})
-    out = []
-    for box, label in zip(det.get("bboxes", []), det.get("bboxes_labels", [])):
-        out.append({"label": str(label), "box": [float(v) for v in box]})
-    print(f"[florence] detected {len(out)} boxes for {texts}")
-    return out
 
 
 # ---------------------------------------------------------------- SAM2 + export

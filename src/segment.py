@@ -1,4 +1,4 @@
-"""SAM2 subject segmentation helpers shared by stage 1 and stage 2."""
+"""SAM2 Web prompt segmentation and mask cleanup helpers."""
 from __future__ import annotations
 
 import cv2
@@ -106,23 +106,6 @@ def select_multimask_index(
     return best
 
 
-def predict_box_mask(predictor, image_rgb, cfg, content_rect=None) -> np.ndarray:
-    """Run SAM2 with the configured fractional box prompt; return bool [H,W]."""
-    arr = np.asarray(image_rgb)  # [H,W,3] uint8
-    h, w = arr.shape[:2]
-    fx0, fy0, fx1, fy1 = cfg["segment"]["box"]
-    box = np.array([fx0 * w, fy0 * h, fx1 * w, fy1 * h])
-    with torch.no_grad(), torch.autocast(cfg["device"], dtype=torch.float16):
-        predictor.set_image(arr)
-        masks, scores, _ = predictor.predict(
-            box=box,
-            multimask_output=True,
-        )
-    best = select_multimask_index(masks, scores, content_rect)
-    oriented = orient_mask_to_subject(masks[best].astype(bool), content_rect)
-    return restrict_to_content(oriented, content_rect)
-
-
 def predict_mask_sam2(
     predictor,
     image_rgb,
@@ -172,12 +155,6 @@ def content_rect_from_pad_info(pad_info) -> tuple[int, int, int, int]:
     ox, oy = pad_info["offset_x"], pad_info["offset_y"]
     rw, rh = pad_info["resized_size"]
     return int(ox), int(oy), int(ox + rw), int(oy + rh)
-
-
-def segment_center_subject(image_rgb, cfg, content_rect=None) -> np.ndarray:
-    """Convenience: build predictor, run one box-prompt segmentation."""
-    predictor = build_sam2_predictor(cfg)
-    return predict_box_mask(predictor, image_rgb, cfg, content_rect)
 
 
 def clean_mask(mask: np.ndarray) -> np.ndarray:

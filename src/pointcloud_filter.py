@@ -1,10 +1,4 @@
-"""Torch-free point-cloud filtering helpers.
-
-Moved out of ``src/vggt_reconstruct.py`` so the reconstruction task framework
-(and any other consumer) can filter a point cloud without importing PyTorch.
-The logic is identical to the stage-3 filter; ``vggt_reconstruct`` re-exports
-these names for backward compatibility.
-"""
+"""Confidence, background-color and statistical-outlier point filtering."""
 from __future__ import annotations
 
 import numpy as np

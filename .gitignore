@@ -44,3 +44,6 @@ datasets/
 outputs/
 results/
 wandb/
+
+# macOS resource-fork sidecars
+._*
