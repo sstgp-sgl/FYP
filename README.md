@@ -3,6 +3,68 @@
 通过一个 Web 页面完成：上传图片 → SAM2 分割主体 → Zero123++ 生成视角 → VGGT 重建点云。
 支持多个主体逐个重建，以及 **6 视图 / 7 视图** 两种 VGGT 输入模式。保留网页点云预览、PLY 下载和 Viser 查看。
 
+## Phase 1：资产登记、CPU 场景布局与 SHARP CLI
+
+Phase 1 为后续“场景 + 主体 → 空间约束 → 场景布局”提供了可测试的数据契约和最小 CPU 演示。它与现有 Zero123++ 生成视图和 VGGT 点云流程并行；目前不提供自然语言解析、自动分割、高斯场景合成或新查看器。
+
+### 快速运行：无需 GPU 或模型
+
+在服务器项目目录 `/root/autodl-tmp/FYP` 运行：
+
+```bash
+export PY=/root/miniconda3/envs/vggt/bin/python
+$PY scripts/30_scene.py demo-compose --root outputs/phase1/demo-left
+$PY scripts/30_scene.py validate-scene --root outputs/phase1/demo-left
+$PY -m pytest -q tests/test_scene_phase1.py tests/test_sharp_cli.py
+```
+
+演示使用固定的合成立方体和地面点云，并将主体放到锚点左侧。每次选一个新的 `--root`，避免覆盖已有演示产物。输出包括：
+
+```text
+outputs/phase1/demo-left/
+├── assets/<asset-id>/asset.json     # 资产元数据与 SHA-256
+├── assets/<asset-id>/data.ply       # 不可变源点云
+├── scene.json                       # 实例变换与空间约束
+├── combined.ply                     # 合并后的 XYZ/RGB 点云
+├── combined.ranges.json             # 导出中每个实例的点范围
+├── validation.json                  # 从保存产物独立复算的验收结果
+└── run.json                          # synthetic 运行记录
+```
+
+坐标约定为右手系、Y 轴向上、地面 `y=0`。布局仅接受已确认 Y-up 的 XYZ/RGB 点云；从原始资产计算统一缩放和底部中心位置，不累乘实例上一次的变换。`left_of` / `right_of` 的 gap 是沿场景固定水平参考方向的边界投影距离。场景单位默认为 `arbitrary`，演示结果不能解读为现实米制或视觉质量证明。
+
+持久化对象使用 `schema_version: 1`。场景保存会校验资产存在且哈希一致；外部资产导入时复制到资产目录。PLY 类型通过顶点字段校验。Gaussian PLY 会保留为原始高斯资产，不计算表面 bounds，也不会被伪装成表面点云参与布局或合并导出。
+
+### SHARP（可选，真实模型尚未在本环境运行）
+
+诊断不会运行推理或下载模型：
+
+```bash
+$PY scripts/30_scene.py diagnose-sharp --config configs/sharp.example.json
+```
+
+当前配置默认关闭自动权重下载。`sharp.example.json` 可配置 SHARP 可执行文件、权重、设备、超时和输出路径。真实单图推理命令如下；图片须是单张不透明 RGB PNG/JPEG，前景需要先由使用者准备：
+
+```bash
+$PY scripts/30_scene.py reconstruct-sharp \
+  --config configs/sharp.example.json \
+  --image /path/to/rgb-photo.png \
+  --role subject
+```
+
+适配器通过安装环境中的 `sharp --help` 和 `sharp predict --help` 核实参数，再以独立输入/输出目录运行官方 CLI。它要求显式本地 checkpoint（除非配置明确开启官方下载），记录图片与权重哈希，并校验本次运行生成的 Gaussian PLY。官方 SHARP 的输出使用 OpenCV 相机轴约定（x 右、y 下、z 前）；它不会自动对齐到场景地面。官方 CLI 若不存在，先按 [Apple ML-SHARP 官方安装说明](https://github.com/apple-aiml-research/ml-sharp#using-the-cli) 建立独立 Python 环境并安装，避免改动现有 VGGT 环境；适配器本身不安装依赖或下载权重。运行模型前分别阅读官方[代码许可](https://github.com/apple-aiml-research/ml-sharp/blob/main/LICENSE)和[模型许可](https://github.com/apple-aiml-research/ml-sharp/blob/main/LICENSE_MODEL)。
+
+SHARP 的 Gaussian 适合附近视角渲染，不代表恢复了完整表面或物体背面。本轮没有实现 Gaussian 查看器、Gaussian 之间的联合渲染或高斯到准确表面点云的转换。适配器用临时假 CLI 做了子进程契约测试；在未安装官方 CLI、checkpoint 且未实际推理之前，不应称作 SHARP 端到端验证通过。
+
+### 本轮边界与状态
+
+- 已实现：版本化资产/场景/变换/约束/运行记录；受控路径和哈希检查；原子 JSON 保存；CPU 点云左右布局、落地、按目标高度缩放、PLY 合并导出和独立数值验收。
+- 已实现：隔离的官方 SHARP CLI 适配器、环境诊断、超时/子进程组清理、运行日志、Gaussian PLY 字段检查、孤儿运行恢复。
+- 仅定义后续方向：`ConstraintParser`、`SubjectExtractor`、`StoryPlanner`、`ViewerAdapter`。当前没有注册可用的空实现。
+- 本仓库已有视图配置包含 6 张 Zero123+ 生成图，并默认 `include_original: true` 将原图也交给 VGGT；这次没有改变该配置。
+- `requirements-phase1.txt` 只列出 Phase 1 演示/契约测试依赖，未自动安装。SHARP 依赖与模型许可按官方仓库分别确认。
+
+
 ## 启动
 
 当前项目在 `ulip:/root/autodl-tmp/photo-to-mesh`，使用现有 Conda 环境，无需先重新安装依赖。

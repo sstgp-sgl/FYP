@@ -1,0 +1,5 @@
+# CPU contracts/demo only. Keep model environments separate.
+numpy>=1.26,<3
+Pillow>=10
+plyfile>=1.0,<2
+pytest>=7,<9
