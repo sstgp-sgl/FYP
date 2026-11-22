@@ -24,7 +24,7 @@ from .service import atomic_array
 from .export import write_storyboard
 from .benchmark_metrics import score,aggregate
 
-PROTOCOL='p8-exploratory-v1'
+PROTOCOL='p8-exploratory-v2'
 METHODS={'b0':('direct',1),'b1':('relations',1),'ours':('events',3),
          'b0_budget3':('direct',3),'b1_budget3':('relations',3),
          'no_feedback':('events',1),'no_state':('events',3),'fixed_camera':('events',3)}
@@ -71,11 +71,13 @@ def prompt(story,method,initial,catalog,config,info):
     mode,_=METHODS[method]
     settings={**config['spatial'],'event_min_distance_change':config.get('events',{}).get('min_distance_change',.2)}
     schema=DirectResponse.model_json_schema() if mode=='direct' else (RelationResponse.model_json_schema() if mode=='relations' else response_schema())
+    schema['$defs']['Narration']['properties']['text'].update(minLength=15,maxLength=60)
     if mode=='direct':
         system='''你是三幕静态三维故事规划器。只输出符合 Schema 的 JSON，不要 Markdown。根据用户每幕要求直接给出每个登记实例的绝对 translation_xyz 和 visible，恰好 scene_1、scene_2、scene_3。不能改变 asset_id、尺度或旋转；只使用给定实例。坐标 Y-up，+X为右。所有可见物体落地且地面 AABB 不重叠。near/far 是地面 AABB 间距，默认 near<=0.5U，far>=1.5U；approach/retreat 是相对上一幕的中心距离减少/增加至少0.2U。没有要求改变的对象保持原位，hold 保持时间上一幕位置。以给定真实尺寸和初始姿态计算，不能假设单位立方体。每幕简短中文旁白15–60字，entity_refs仅实例ID，fact_claims=[]，不虚构新对象或动作。shot为overview或focus，focus填写目标实例，complete_display=true；focus只改变镜头。存在歧义、不支持的动作或新对象时 needs_clarification，否则 ready 并包含 plan。只给基础格式/引用保护，程序不会替你修正坐标。'''
         messages=[dict(role='system',content=system+'\nSchema:'+json.dumps(schema,ensure_ascii=False)),dict(role='user',content=json.dumps(dict(user_story=story,confirmed_catalog=catalog,initial_state=asdict(initial),runtime_settings=settings),ensure_ascii=False))]
     else:
         messages=messages_for(story,catalog,asdict(initial),settings)
+        messages[0]['content']=messages[0]['content'].split('\n输出语法 Schema：')[0]+'\n输出语法 Schema：'+json.dumps(schema,ensure_ascii=False)
         if mode=='relations':
             messages[0]['content']=messages[0]['content'].split('\n输出语法 Schema：')[0]+'\n本次方法是 Relations-only + explicit visibility。逐幕输出静态空间关系、镜头和旁白，events 必须始终为空数组，不提供 approach/retreat/hold 事件求解。每幕可用 visibility 字典填写登记实例最终是否可见（布尔值），未写时继承；这是直接静态可见性设置。需要运动时用逐幕关系与距离表达，保持时可用 keep_pose；仍可继承前一幕。隐藏实例不能出现在空间约束或镜头目标。fact_claims只引用本幕constraint_id；可用[]，不要捏造可见性ID。不要输出坐标。此规则覆盖前文要求输出事件的部分。\n输出语法 Schema：'+json.dumps(schema,ensure_ascii=False)
     # Identical geometry, budgets and narration instructions for every method.
@@ -122,8 +124,11 @@ def render_direct(raw,frozen,out):
     return True
 
 def execute_response(raw,frozen,out,method):
+    failures=[]
     for row in (raw.get('plan') or {}).get('scenes',[]):
-        if not 15<=len(row.get('narration',{}).get('text','').strip())<=60:raise ValueError('narration length must be 15..60 Unicode characters for every method')
+        count=len(row.get('narration',{}).get('text','').strip())
+        if not 15<=count<=60:failures.append(dict(scene_id=row.get('scene_id'),field='narration.text',characters=count,minimum=15,maximum=60))
+    if failures:raise ValueError('narration_length_errors: '+json.dumps(failures,ensure_ascii=False))
     mode,_=METHODS[method]
     if mode=='direct':return render_direct(raw,frozen,out)
     if mode=='relations':

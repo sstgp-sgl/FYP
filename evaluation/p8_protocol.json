@@ -1,5 +1,5 @@
 {
-  "protocol": "p8-exploratory-v1",
+  "protocol": "p8-exploratory-v2",
   "scope": "User approved exploratory comparisons; not an independent held-out test set",
   "annotation": "Five expected behaviors confirmed by user before model runs on 2026-11-23; assistant encoded numeric requirements. Full narration semantics awaits human review.",
   "seed": 20261123,

@@ -80,6 +80,16 @@ def test_all_methods_receive_identical_bounds_camera_and_initial_geometry(frozen
  assert suffix[0]==suffix[1]==suffix[2]
  for m in messages:
   assert initial.instances[0].asset_id in m[1]['content'] and 'canonical_bounds' in m[1]['content']
+ for method in ['b0','b1','ours']:
+  m,schema=prompt('同一个故事',method,initial,catalog,config,info)
+  text=schema['$defs']['Narration']['properties']['text']
+  assert text['minLength']==15 and text['maxLength']==60
+  assert '"maxLength": 60' in m[0]['content']
+
+def test_narration_failure_names_exact_scene_and_character_count(frozen,tmp_path):
+ d=direct(frozen);d['plan']['scenes'][1]['narration']['text']='短句'
+ with pytest.raises(ValueError,match='scene_2.*characters.*2'):
+  execute_response(d,frozen,tmp_path/'short','b0')
 
 
 def test_failed_live_request_counts_as_attempt_and_keeps_full_requirements(frozen,tmp_path):
