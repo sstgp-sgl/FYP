@@ -51,3 +51,15 @@ python scripts/analyze_p8.py --frozen FROZEN --batch EXISTING_BATCH --out SECOND
 ```
 
 主比较的预登记分配为：人物/鸭使用 T1、T2、T4；熊/鸭使用 T3、T4、T5。规模保持 54 次，同时覆盖全部五类已确认任务，两个资产组都包含 focus，便于检查镜头消融。此分配在任何主比较结果产生前冻结，不根据主比较结果筛选案例。
+
+完整批次结束后，可用一条离线命令重新计算全部三部分的结果表、CSV、图片索引与独立审计，不调用模型：
+
+```bash
+python scripts/evaluate_p8.py --run-root /absolute/path/to/complete/p8-run
+```
+
+该命令要求主比较、预算对照和消融的所有预登记运行均有记录；中断或未完成批次不会被当成完整研究。
+
+`python scripts/summarize_p8.py --run-root /absolute/path/to/complete/p8-run` 可将三部分结果汇总成同目录下的 `index.html`。它只读取表格和独立审计，展示全部案例入口及数据局限；不会发出模型调用。
+
+本轮六份资产变体只作来源清单，主比较实际使用人物 VGGT、熊 Hunyuan 和鸭 VGGT；并未分别测试全部重建变体。新增鸭 Hunyuan 作为形状较差的资产检查样本保留，太阳镜因掩码和形状失败排除出故事布局。两者均保留检查记录，不用于声称资产质量通过。
