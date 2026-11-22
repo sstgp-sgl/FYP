@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "annotation": {"source": "user_confirmed_expectations", "confirmation_date": "2026-11-22", "confirmation": "User confirmed the ten modification rules before execution. Assistant encoded numeric fixtures; not independent blinded annotation."},
+  "cases": [
+    {"id":"E01","request":"只把第二幕旁白替换为：小熊静静等候。其他内容不要改。","expected_status":"succeeded","allowed_fields":["narration"],"operations":[{"kind":"narration","scene_id":"s2","text":"小熊静静等候。"}]},
+    {"id":"E02","request":"只把第二幕镜头改为 focus 关注熊 b，完整展示熊，不改旁白和物体位置。","expected_status":"succeeded","allowed_fields":["shot"],"operations":[{"kind":"shot","scene_id":"s2","template":"focus","target_ids":["b"],"complete_display":true}]},
+    {"id":"E03","request":"只把第二幕镜头改为 overview 全景，不指定单独关注目标，完整展示。其他内容不变。","expected_status":"succeeded","allowed_fields":["shot"],"operations":[{"kind":"shot","scene_id":"s2","template":"overview","target_ids":[],"complete_display":true}]},
+    {"id":"E04","request":"只把第二幕 distance2 的 near_max 改为 0.3，人物 a 靠近熊 b。保持其他约束、旁白和第一三幕不变。","expected_status":"succeeded","allowed_fields":["constraints"],"operations":[{"kind":"relation","scene_id":"s2","constraint_id":"distance2","subject_instance_id":"a","object_instance_id":"b","relation":"near","parameters":{"near_max":0.3}}]},
+    {"id":"E05","request":"只把第二幕 distance2 从 near 换成 far，人物 a 距熊 b 的 far_min 为 1.5。第一三幕、旁白不变。","expected_status":"succeeded","allowed_fields":["constraints"],"operations":[{"kind":"relation","scene_id":"s2","constraint_id":"distance2","subject_instance_id":"a","object_instance_id":"b","relation":"far","parameters":{"far_min":1.5}}]},
+    {"id":"E06","request":"只改第二幕：旁白替换为“小熊静静等候。”；镜头改为 focus 关注熊 b，完整展示。不改物体位置或其他幕。","expected_status":"succeeded","allowed_fields":["narration","shot"],"operations":[{"kind":"narration","scene_id":"s2","text":"小熊静静等候。"},{"kind":"shot","scene_id":"s2","template":"focus","target_ids":["b"],"complete_display":true}]},
+    {"id":"E07","request":"基于过期版本 v1 修改旁白（当前已是 v2）。","expected_status":"version_conflict","stale":true,"operations":[{"kind":"narration","scene_id":"s2","text":"小熊静静等候。"}]},
+    {"id":"E08","request":"只把第二幕改为 near 0.3；第三幕锁定，但第三幕仍要求 approach 至少 0.2。","fixture":"third_approach","expected_status":"conflict","operations":[{"kind":"relation","scene_id":"s2","constraint_id":"distance2","subject_instance_id":"a","object_instance_id":"b","relation":"near","parameters":{"near_max":0.3}}]},
+    {"id":"E09","request":"第二幕也被锁定，仍尝试替换其旁白。","expected_status":"conflict","locks":["s1","s2","s3"],"operations":[{"kind":"narration","scene_id":"s2","text":"小熊静静等候。"}]},
+    {"id":"E10","request":"尝试任意矩阵镜头（不支持），应拒绝；事件编辑也不属于 EditPatch。","expected_status":"invalid_patch","operations":[{"kind":"shot","scene_id":"s2","template":"free_matrix","target_ids":[]}]}
+  ]
+}

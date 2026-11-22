@@ -23,6 +23,11 @@ class AssetRequest(Request):
     name:str=Field(min_length=1,max_length=50)
     name_confirmed:bool
     method:str
+class EditRequest(Request):
+    base_version:int=Field(ge=1)
+    patch:dict|None=None
+    text:str|None=Field(default=None,min_length=1,max_length=3000)
+    locked_scene_ids:list[str]|None=None
 
 
 def create_app(settings,provider_factory=None,executors=None,start=True):
@@ -39,11 +44,13 @@ def create_app(settings,provider_factory=None,executors=None,start=True):
     @app.get('/')
     def index():return FileResponse(Path(__file__).resolve().parents[2]/'web/storyboard/index.html')
     @app.get('/api/p6/config')
-    def config():return dict(methods=list(settings.get('reconstruction',{}).get('methods',{})),provisional=True)
+    def config():return dict(methods=list(settings.get('reconstruction',{}).get('methods',{})),provisional=True,
+        uploads_enabled=settings.get('uploads_enabled',True),runtime_notice=settings.get('runtime_notice',''))
     @app.get('/api/p6/assets')
     def assets():return [dict(key=a['key'],name=a['name'],asset_id=a['asset_id'],instance_id=a['instance_id'],orientation=a.get('orientation','proposed'),source_job=a.get('source_job')) for a in store.assets()]
     @app.post('/api/p6/uploads')
     async def upload(file:UploadFile=File(...)):
+        if not settings.get('uploads_enabled',True):raise HTTPException(409,'当前服务为 CPU 编辑验收；新图片重建请启动 GPU 服务。')
         try:return store.upload(await file.read(20*1024*1024+1))
         except Exception as exc:raise error(exc)
     @app.get('/api/p6/uploads/{upload_id}/image')
@@ -64,6 +71,24 @@ def create_app(settings,provider_factory=None,executors=None,start=True):
         except Exception as exc:raise error(exc)
     @app.post('/api/p6/stories')
     def story(body:StoryRequest):return submit('story',body)
+    @app.get('/api/p7/stories/{job_id}/versions')
+    def versions(job_id:UUID):
+        from .edits import EditStore
+        try:
+            parent=store.job(job_id.hex)
+            if parent['kind']!='story' or parent['status']!='succeeded':raise ValueError('only completed stories can be edited')
+            versions=EditStore(store.path(job_id.hex));state=versions.state();base=versions.root(state,state['current_version'])
+            return dict(**state,plan=json.loads((base/'story_plan.json').read_text()),catalog=json.loads((store.path(job_id.hex)/'catalog.json').read_text()))
+        except Exception as exc:raise error(exc)
+    @app.post('/api/p7/stories/{job_id}/edits')
+    def edit(job_id:UUID,body:EditRequest):
+        data=body.model_dump(mode='json',exclude_none=True);request_id=data.pop('request_id')
+        if ('patch' in data)==('text' in data):raise HTTPException(400,'请提交结构化修改或一句修改要求')
+        if 'text' in data and 'locked_scene_ids' not in data:raise HTTPException(400,'语言修改需要明确锁定幕范围，请先选择要修改的幕。')
+        try:
+            job,created=store.submit('edit',request_id,dict(story_job_id=job_id.hex,**data))
+            return dict(id=job['id'],status=job['status'],deduplicated=not created)
+        except Exception as exc:raise error(exc)
     @app.post('/api/p6/segments')
     def segment(body:SegmentRequest):return submit('segment',body)
     @app.post('/api/p6/reconstructions')

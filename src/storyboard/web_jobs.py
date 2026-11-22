@@ -9,7 +9,7 @@ from src.scene.storage import atomic_json,read_json,sha256,SceneRepository,contr
 from .assets import freeze_assets
 from .spatial_service import LayoutAssets
 
-TERMINAL={'succeeded','failed','needs_clarification','interrupted'}
+TERMINAL={'succeeded','failed','needs_clarification','interrupted','conflict','version_conflict','invalid_patch'}
 
 def uid(value):return uuid.UUID(str(value)).hex
 
@@ -64,7 +64,7 @@ class JobStore:
         return read_json(path/'upload.json')
 
     def submit(self,kind,request_id,payload):
-        if kind not in {'story','segment','asset'}:raise ValueError('unknown job kind')
+        if kind not in {'story','segment','asset','edit'}:raise ValueError('unknown job kind')
         job_id=uid(request_id);digest=fingerprint(dict(kind=kind,payload=payload));root=self.path(job_id)
         with self.lock:
             if root.exists():
@@ -76,6 +76,14 @@ class JobStore:
             try:
                 atomic_json(root/'settings.json',self.settings)
                 if kind=='story':self.freeze_story(root,payload)
+                elif kind=='edit':
+                    parent=self.job(payload['story_job_id'])
+                    if parent['kind']!='story' or parent['status']!='succeeded':raise ValueError('只能修改已完成的故事')
+                    from .edits import EditStore
+                    state=EditStore(self.path(parent['id'])).state()
+                    if payload['base_version']!=state['current_version']:raise FileExistsError('版本已过期，请刷新后重试')
+                    edit={k:v for k,v in payload.items() if k!='story_job_id' and v is not None}
+                    atomic_json(root/'edit-request.json',edit)
                 elif kind=='segment':
                     upload=self.root/'uploads'/uid(payload['upload_id']);meta=read_json(upload/'upload.json')
                     if sha256(upload/'image.png')!=meta['sha256']:raise ValueError('上传图片已改变')
@@ -194,6 +202,26 @@ class JobStore:
                 result=subprocess.run([sys.executable,str(repository/'scripts/storyboard.py'),'validate','--run',str(root/'pipeline')],cwd=repository,stdout=log,stderr=subprocess.STDOUT,timeout=600)
             if result.returncode:raise ValueError('独立验收未通过')
         self.update(job_id,status=run['status'],stage='complete',provider=run.get('provider'),question=run.get('question'),error=run.get('error'),finished_at=time.time())
+
+    def execute_edit(self,job_id):
+        root=self.path(job_id);job=self.job(job_id);settings=read_json(root/'settings.json')
+        repository=Path(__file__).resolve().parents[2];pipeline=root/'pipeline';pipeline.mkdir()
+        compiled=pipeline/'attempt_00/compiled';compiled.parent.mkdir()
+        self.update(job_id,stage='editing')
+        command=[sys.executable,str(repository/'scripts/edit_storyboard.py'),'--story-root',str(self.path(job['request']['story_job_id'])),
+            '--request',str(root/'edit-request.json'),'--out',str(compiled),'--api-model',settings.get('api_model','deepseek-v4-pro')]
+        with (root/'pipeline.log').open('w') as log:
+            self.child=subprocess.Popen(command,cwd=repository,stdout=log,stderr=subprocess.STDOUT)
+            try:self.child.wait(timeout=600)
+            except subprocess.TimeoutExpired:
+                self.child.terminate();self.child.wait(timeout=5);raise RuntimeError('修改超时，旧版本保持可用')
+            finally:self.child=None
+        result=read_json(compiled.parent/'edit-result.json')
+        artifacts=[dict(path=str(p.relative_to(pipeline)),sha256=sha256(p)) for p in compiled.parent.rglob('*')
+            if p.is_file() and not p.is_relative_to(compiled) and p.suffix in {'.json','.txt'}]
+        atomic_json(pipeline/'run.json',dict(pipeline='p7_edit_job',status=result['status'],accepted_attempt='attempt_00',attempts=[dict(directory='attempt_00')],artifacts=artifacts))
+        self.update(job_id,status=result['status'],stage='complete',edit_result=result,
+            error=result.get('conflict_summary') or result.get('error') or ('修改与锁定幕或跨幕事件冲突；旧版本未改变。' if result['status']!='succeeded' else None),finished_at=time.time())
 
     def register(self,job_id,relative):
         root=self.path(job_id);path=controlled(root,relative)
