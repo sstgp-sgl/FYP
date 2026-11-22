@@ -1,0 +1,120 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #1e1f22; color: #d7d9dc;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button, select, input, textarea {
+  padding: 5px 8px; border-radius: 6px; border: 1px solid #444;
+  background: #2b2d31; color: #eee; font-size: 13px;
+}
+button { cursor: pointer; }
+button:hover { background: #3a3d42; }
+button.primary { background: #3d5a80; border-color: #5a7ba0; }
+button.primary:disabled { opacity: .45; cursor: not-allowed; }
+textarea { width: 100%; resize: vertical; }
+h3 { margin: 2px 0 8px; font-size: 13px; color: #b7bcc2; font-weight: 600; }
+.hidden { display: none !important; }
+.hint { font-size: 12px; color: #9aa0a6; margin-top: 6px; white-space: pre-wrap; }
+.error-text { color: #f28b82; }
+.ok-text { color: #81c995; }
+
+#topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px; background: #26282c; border-bottom: 1px solid #3a3d42;
+}
+#topbar .back { color: #8ab4f8; text-decoration: none; font-size: 13px; }
+#topbar .scene-name { font-weight: 600; }
+#topbar .status-text { font-size: 12px; color: #9aa0a6; }
+.badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: #3d3f47; border: 1px solid #555;
+}
+
+#layout { flex: 1; display: flex; gap: 10px; padding: 10px; min-height: 0; }
+.panel { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+#left { width: 300px; flex: 0 0 300px; }
+#right { width: 340px; flex: 0 0 340px; }
+#center { flex: 1; display: flex; min-width: 0; }
+
+.card {
+  background: #26282c; border: 1px solid #3a3d42;
+  border-radius: 8px; padding: 10px;
+}
+.row { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.row input[type=text] { flex: 1; min-width: 0; }
+.row label { font-size: 12px; color: #b7bcc2; }
+.row input[type=number] { width: 64px; }
+#sceneSelect { width: 100%; }
+
+#stage {
+  position: relative; flex: 1; background: #000; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+#canvasHost { position: absolute; }
+#subtitle {
+  position: absolute; left: 8%; right: 8%; bottom: 18px;
+  background: rgba(0,0,0,.62); color: #fff; border-radius: 8px;
+  padding: 8px 14px; text-align: center; font-size: 17px; pointer-events: none;
+}
+.webgl-error {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; text-align: center; padding: 20px;
+  background: rgba(0,0,0,.85); color: #f28b82; font-size: 14px;
+}
+
+/* entities */
+.entity {
+  border: 1px solid #444; border-radius: 6px; background: #2b2d31;
+  padding: 8px; margin-top: 8px; font-size: 12px;
+}
+.entity.selected { border-color: #f0c040; }
+.entity .head { display: flex; gap: 6px; align-items: center; }
+.entity .head input { flex: 1; min-width: 0; }
+.entity .bounds { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 6px; }
+.entity .bounds input { width: 100%; }
+.entity label.mini { font-size: 11px; color: #9aa0a6; }
+.fact-row { display: flex; gap: 4px; margin-top: 4px; align-items: center; }
+.fact-row input[type=text] { flex: 1; min-width: 0; }
+.remove-btn { color: #f28b82; border-color: #6b3530; background: #3a2523; }
+
+/* views */
+.view {
+  border: 1px solid #444; border-radius: 6px; background: #2b2d31;
+  padding: 8px; margin-top: 8px; font-size: 12px;
+}
+.view .head { display: flex; gap: 6px; align-items: center; }
+.view .head b { flex: 1; cursor: pointer; }
+.view .checks { margin-top: 4px; }
+.checks label { display: block; font-size: 12px; margin-top: 2px; }
+
+/* shots */
+.shot {
+  border: 1px solid #444; border-radius: 6px; background: #2b2d31;
+  padding: 8px; margin-top: 8px; font-size: 12px;
+}
+.shot .head { display: flex; gap: 6px; align-items: center; }
+.shot .head b { flex: 1; }
+.shot textarea { margin-top: 4px; font-size: 12px; }
+.shot select { width: 100%; margin-top: 4px; }
+.shot .row { align-items: flex-start; }
+.sb-item {
+  border: 1px solid #444; border-radius: 6px; padding: 6px 8px;
+  margin-top: 6px; font-size: 12px; background: #2b2d31;
+}
+.sb-item .actions { margin-top: 4px; display: flex; gap: 6px; }
+
+/* player bar */
+#playerBar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; background: #26282c; border-top: 1px solid #3a3d42;
+}
+#playerBar button { font-size: 15px; min-width: 36px; }
+#playerBar span { font-size: 12px; color: #b7bcc2; }
+#shotInfo { min-width: 70px; }
+#timeInfo { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1100px) {
+  #left, #right { width: 260px; flex-basis: 260px; }
+}

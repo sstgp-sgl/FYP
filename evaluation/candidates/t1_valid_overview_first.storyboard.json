@@ -1,0 +1,9 @@
+{
+  "title": "庭院导览（有效示例）",
+  "language": "zh-CN",
+  "shots": [
+    {"shot_id": "shot_01", "view_id": "view_overview", "focus_entity_ids": ["entity_building", "entity_tree", "entity_wall"], "narration": "先从整体俯瞰庭院，三个标注区域分布在不同位置。", "fact_ids": ["fact_building_region", "fact_building_west", "fact_tree_region", "fact_wall_region"], "duration_seconds": 10, "transition": "cut"},
+    {"shot_id": "shot_02", "view_id": "view_building", "focus_entity_ids": ["entity_building"], "narration": "接着走近红色建筑区域。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"},
+    {"shot_id": "shot_03", "view_id": "view_tree", "focus_entity_ids": ["entity_tree"], "narration": "最后看向绿色树丛区域。", "fact_ids": ["fact_tree_region"], "duration_seconds": 10, "transition": "cut"}
+  ]
+}

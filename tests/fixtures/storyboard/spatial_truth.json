@@ -1,0 +1,27 @@
+{
+  "description": "Hand-authored world AABBs; U is arbitrary. Values are independent of the solver.",
+  "b": [[-0.5,0,-0.5],[0.5,1,0.5]],
+  "cases": [
+    {"id":"left_exact_gap","a":[[-1.7,0,-0.5],[-0.7,1,0.5]],"relation":"left_of","parameters":{"gap":0.2},"expected":true,"measured":0.2},
+    {"id":"left_too_close","a":[[-1.6998,0,-0.5],[-0.6998,1,0.5]],"relation":"left_of","parameters":{"gap":0.2},"expected":false,"measured":0.1998},
+    {"id":"left_in_eps","a":[[-1.69995,0,-0.5],[-0.69995,1,0.5]],"relation":"left_of","parameters":{"gap":0.2},"expected":true,"measured":0.19995},
+    {"id":"right_exact_gap","a":[[0.7,0,-0.5],[1.7,1,0.5]],"relation":"right_of","parameters":{"gap":0.2},"expected":true,"measured":0.2},
+    {"id":"right_too_close","a":[[0.6998,0,-0.5],[1.6998,1,0.5]],"relation":"right_of","parameters":{"gap":0.2},"expected":false,"measured":0.1998},
+    {"id":"near_exact","a":[[-2,0,-0.5],[-1,1,0.5]],"relation":"near","parameters":{"near_max":0.5},"expected":true,"measured":0.5},
+    {"id":"near_outside","a":[[-2.0002,0,-0.5],[-1.0002,1,0.5]],"relation":"near","parameters":{"near_max":0.5},"expected":false,"measured":0.5002},
+    {"id":"near_inside","a":[[-1.9998,0,-0.5],[-0.9998,1,0.5]],"relation":"near","parameters":{"near_max":0.5},"expected":true,"measured":0.4998},
+    {"id":"near_diagonal_3_4_5","a":[[-1.8,0,-1.9],[-0.8,1,-0.9]],"relation":"near","parameters":{"near_max":0.5},"expected":true,"measured":0.5},
+    {"id":"far_exact","a":[[-3,0,-0.5],[-2,1,0.5]],"relation":"far","parameters":{"far_min":1.5},"expected":true,"measured":1.5},
+    {"id":"far_inside","a":[[-2.9998,0,-0.5],[-1.9998,1,0.5]],"relation":"far","parameters":{"far_min":1.5},"expected":false,"measured":1.4998},
+    {"id":"far_outside","a":[[-3.0002,0,-0.5],[-2.0002,1,0.5]],"relation":"far","parameters":{"far_min":1.5},"expected":true,"measured":1.5002},
+    {"id":"far_uses_edges_not_centers","a":[[-2.5,0,-0.5],[-1.5,1,0.5]],"relation":"far","parameters":{"far_min":1.5},"expected":false,"measured":1.0},
+    {"id":"ground_zero","a":[[-0.5,0,-0.5],[0.5,1,0.5]],"relation":"on_ground","parameters":{},"expected":true,"measured":0},
+    {"id":"ground_above","a":[[-0.5,0.0002,-0.5],[0.5,1.0002,0.5]],"relation":"on_ground","parameters":{},"expected":false,"measured":0.0002},
+    {"id":"ground_below","a":[[-0.5,-0.0002,-0.5],[0.5,0.9998,0.5]],"relation":"on_ground","parameters":{},"expected":false,"measured":-0.0002},
+    {"id":"ground_in_tolerance","a":[[-0.5,0.00005,-0.5],[0.5,1.00005,0.5]],"relation":"on_ground","parameters":{},"expected":true,"measured":0.00005},
+    {"id":"touching_allowed","a":[[-1.5,0,-0.5],[-0.5,1,0.5]],"relation":"non_overlap","parameters":{},"expected":true,"measured":0},
+    {"id":"overlap_area","a":[[-0.6,0,-0.5],[0.4,1,0.5]],"relation":"non_overlap","parameters":{},"expected":false,"measured":0.9},
+    {"id":"z_touching_allowed","a":[[-0.5,0,0.5],[0.5,1,1.5]],"relation":"non_overlap","parameters":{},"expected":true,"measured":0},
+    {"id":"near_overlaps_but_system_must_reject","a":[[-0.6,0,-0.5],[0.4,1,0.5]],"relation":"near","parameters":{"near_max":0.5},"expected":true,"measured":0}
+  ]
+}

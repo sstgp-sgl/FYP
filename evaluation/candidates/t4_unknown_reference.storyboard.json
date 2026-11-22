@@ -1,0 +1,8 @@
+{
+  "title": "错误示例：引用不存在的镜头",
+  "language": "zh-CN",
+  "shots": [
+    {"shot_id": "shot_01", "view_id": "view_overview", "focus_entity_ids": ["entity_building", "entity_tree", "entity_wall"], "narration": "整体概览。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"},
+    {"shot_id": "shot_02", "view_id": "view_does_not_exist", "focus_entity_ids": ["entity_building"], "narration": "引用不存在的镜头。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"}
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "description": "Fixed offline task set for the synthetic courtyard scene. Candidates carry title/language/shots only; scene binding (scene_id/revision/asset hash) is filled from the live scene at evaluation time. human_check.fact_consistency must be filled by a human reviewer; this file never makes LLM calls.",
+  "tasks": [
+    {
+      "task_id": "t1_valid_overview_first",
+      "scene_id": "synthetic_courtyard",
+      "candidate": "candidates/t1_valid_overview_first.storyboard.json",
+      "request": {
+        "user_prompt": "先整体，再建筑，最后树丛，三段30秒",
+        "language": "zh-CN",
+        "target_duration_seconds": 30,
+        "shot_count": 3,
+        "required_entity_ids": ["entity_building", "entity_tree"],
+        "opening_view_id": "view_overview"
+      },
+      "expected": {"valid": true, "shot_count": 3, "total_duration": 30},
+      "human_check": {"fact_consistency": null}
+    },
+    {
+      "task_id": "t2_invisible_focus",
+      "scene_id": "synthetic_courtyard",
+      "candidate": "candidates/t2_invisible_focus.storyboard.json",
+      "request": {
+        "user_prompt": "三段，讲建筑",
+        "language": "zh-CN",
+        "target_duration_seconds": 30,
+        "shot_count": 3,
+        "required_entity_ids": ["entity_building"],
+        "opening_view_id": null
+      },
+      "expected": {"valid": false, "reason": "focus entity not human-confirmed visible from the chosen view"},
+      "human_check": {"fact_consistency": null}
+    },
+    {
+      "task_id": "t3_duration_mismatch",
+      "scene_id": "synthetic_courtyard",
+      "candidate": "candidates/t3_duration_mismatch.storyboard.json",
+      "request": {
+        "user_prompt": "三段30秒",
+        "language": "zh-CN",
+        "target_duration_seconds": 30,
+        "shot_count": 3,
+        "required_entity_ids": [],
+        "opening_view_id": null
+      },
+      "expected": {"valid": false, "reason": "total duration differs from target by more than 1s"},
+      "human_check": {"fact_consistency": null}
+    },
+    {
+      "task_id": "t4_unknown_reference",
+      "scene_id": "synthetic_courtyard",
+      "candidate": "candidates/t4_unknown_reference.storyboard.json",
+      "request": {
+        "user_prompt": "两段导览",
+        "language": "zh-CN",
+        "target_duration_seconds": 20,
+        "shot_count": 2,
+        "required_entity_ids": [],
+        "opening_view_id": null
+      },
+      "expected": {"valid": false, "reason": "shot references a view id that does not exist"},
+      "human_check": {"fact_consistency": null}
+    }
+  ]
+}

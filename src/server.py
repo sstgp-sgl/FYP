@@ -44,6 +44,14 @@ def create_app(cfg: dict) -> FastAPI:
     app.mount("/outputs/views", StaticFiles(directory=cfg["paths"]["views_dir"]), name="views")
     workflow_lock = threading.Lock()
 
+    # ---- scene tour (CPU-only module; fails soft when deps are missing) ----
+    try:
+        from src.tour.app import mount_tour
+
+        mount_tour(app, reconstruction_output_dir=cfg.get("output_dir"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"[tour] not mounted: {exc}")
+
     state: dict = {
         "cfg": cfg,
         "image": None,       # PIL RGB

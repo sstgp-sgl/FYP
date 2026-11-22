@@ -47,3 +47,22 @@ wandb/
 
 # macOS resource-fork sidecars
 ._*
+
+# Machine-local reconstruction paths and external model checkouts
+configs/*.local.yaml
+configs/hpc*.yaml
+deps/
+runs/
+*.npz
+*.npy
+*.ply
+*.glb
+
+# Machine-local storyboard configuration and browser test artifacts
+configs/*.local.json
+tests/e2e/artifacts/
+
+# Node browser test dependencies and reports
+node_modules/
+playwright-report/
+test-results/

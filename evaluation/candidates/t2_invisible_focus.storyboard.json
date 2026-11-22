@@ -1,0 +1,9 @@
+{
+  "title": "错误示例：焦点不在人工确认范围内",
+  "language": "zh-CN",
+  "shots": [
+    {"shot_id": "shot_01", "view_id": "view_tree", "focus_entity_ids": ["entity_building"], "narration": "从这个角度讲建筑。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"},
+    {"shot_id": "shot_02", "view_id": "view_building", "focus_entity_ids": ["entity_building"], "narration": "继续讲建筑。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"},
+    {"shot_id": "shot_03", "view_id": "view_wall", "focus_entity_ids": ["entity_building"], "narration": "再讲建筑。", "fact_ids": ["fact_building_region"], "duration_seconds": 10, "transition": "cut"}
+  ]
+}

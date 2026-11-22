@@ -1,0 +1,24 @@
+{
+  "root": "/absolute/path/web-state",
+  "assets": [
+    {"key": "person", "asset_id": "REPLACE_PERSON_ASSET_ID", "instance_id": "person_01", "name": "人物", "library": "/absolute/path/asset-library", "orientation": "proposed"},
+    {"key": "bear", "asset_id": "REPLACE_BEAR_ASSET_ID", "instance_id": "bear_01", "name": "熊", "library": "/absolute/path/asset-library", "orientation": "proposed"}
+  ],
+  "story_config": "/absolute/path/FYP/configs/storyboard.yaml",
+  "api_model": "deepseek-v4-pro",
+  "story_timeout_seconds": 1800,
+  "sam": {
+    "device": "cuda",
+    "segment": {
+      "sam2_checkpoint": "/absolute/path/sam2/checkpoints/sam2.1_hiera_large.pt",
+      "sam2_config": "configs/sam2.1/sam2.1_hiera_l.yaml",
+      "background_gray": 255
+    }
+  },
+  "reconstruction": {
+    "common": {"points": 120000, "gray": true, "normalize": true},
+    "methods": {
+      "hunyuan": {"repo": "/absolute/path/Hunyuan3D-2", "weights": "/absolute/path/Hunyuan3D-2mini/hunyuan3d-dit-v2-mini", "resolution": 256, "steps": 30}
+    }
+  }
+}

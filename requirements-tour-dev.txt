@@ -1,0 +1,2 @@
+-r requirements-tour.txt
+pytest>=8,<9

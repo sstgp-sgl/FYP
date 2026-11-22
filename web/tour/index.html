@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>场景导览 · FYP</title>
+<link rel="stylesheet" href="/tour/static/tour.css">
+</head>
+<body>
+<header id="topbar">
+  <a class="back" href="/">← 返回重建页</a>
+  <span id="sceneName" class="scene-name">未选择场景</span>
+  <span id="sourceBadge" class="badge hidden"></span>
+  <span id="saveStatus" class="status-text"></span>
+</header>
+
+<div id="layout">
+  <aside id="left" class="panel">
+    <section class="card">
+      <h3>1 · 场景</h3>
+      <select id="sceneSelect"><option value="">（未选择）</option></select>
+      <div class="row">
+        <input type="file" id="plyFile" accept=".ply">
+      </div>
+      <div class="row">
+        <input type="text" id="newTitle" placeholder="场景标题（导入时填写）">
+        <button id="importBtn">导入 PLY</button>
+      </div>
+      <div id="importStatus" class="hint"></div>
+    </section>
+
+    <section class="card">
+      <h3>2 · 实体标注</h3>
+      <button id="addEntityBtn">＋ 添加实体</button>
+      <div id="entityList"></div>
+      <button id="saveAnnotationsBtn" class="primary" style="margin-top:8px;width:100%;">保存标注与镜头（Ctrl/Cmd+S）</button>
+    </section>
+
+    <section class="card">
+      <h3>3 · 镜头</h3>
+      <div class="row">
+        <input type="text" id="viewName" placeholder="镜头名称">
+        <button id="saveViewBtn">保存当前视角</button>
+      </div>
+      <div id="viewList"></div>
+    </section>
+  </aside>
+
+  <main id="center">
+    <div id="stage">
+      <div id="canvasHost"></div>
+      <div id="subtitle" class="subtitle hidden"></div>
+      <div id="webglError" class="webgl-error hidden"></div>
+    </div>
+  </main>
+
+  <aside id="right" class="panel">
+    <section class="card">
+      <h3>4 · 导览要求</h3>
+      <textarea id="prompt" rows="3" placeholder="例如：先整体，再讲红色建筑，最后讲绿色树丛，三段共30秒"></textarea>
+      <div class="row">
+        <label>语言
+          <select id="langSel">
+            <option value="zh-CN" selected>中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label>总时长(s)
+          <input type="number" id="durationSel" min="5" max="120" value="30">
+        </label>
+        <label>段数
+          <input type="number" id="shotCountSel" min="1" max="6" value="3">
+        </label>
+      </div>
+      <div class="hint">必须覆盖的实体：</div>
+      <div id="requiredEntities" class="checks"></div>
+      <div class="row">
+        <label>开场镜头
+          <select id="openingViewSel"><option value="">（不限）</option></select>
+        </label>
+      </div>
+      <button id="generateBtn" class="primary">生成导览（LLM）</button>
+      <div id="genStatus" class="hint"></div>
+    </section>
+
+    <section class="card">
+      <h3>5 · 分镜（可手动）</h3>
+      <div class="row">
+        <input type="text" id="sbTitle" placeholder="导览标题">
+        <button id="addShotBtn">＋ 分镜</button>
+      </div>
+      <div id="shotList"></div>
+      <div id="sbTotals" class="hint"></div>
+      <div class="row">
+        <button id="validateSbBtn">校验</button>
+        <button id="playDraftBtn">播放草稿</button>
+        <button id="saveSbBtn" class="primary">保存分镜</button>
+        <a id="downloadSb" class="hidden" href="#">下载</a>
+      </div>
+      <div id="sbStatus" class="hint"></div>
+    </section>
+
+    <section class="card">
+      <h3>已保存导览</h3>
+      <div id="sbList"></div>
+    </section>
+  </aside>
+</div>
+
+<footer id="playerBar">
+  <button id="playBtn" title="播放/暂停">▶</button>
+  <button id="prevBtn" title="上一段">⏮</button>
+  <button id="nextBtn" title="下一段">⏭</button>
+  <button id="replayBtn" title="重播">↺</button>
+  <span id="shotInfo">- / -</span>
+  <span id="timeInfo">0.0s / 0.0s</span>
+  <span id="playerState"></span>
+</footer>
+
+<script src="/vendor/three-r128/three.min.js"></script>
+<script src="/vendor/three-r128/OrbitControls.js"></script>
+<script type="module" src="/tour/static/main.js"></script>
+</body>
+</html>

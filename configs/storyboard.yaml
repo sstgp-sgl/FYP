@@ -1,0 +1,60 @@
+schema_version: 1
+seed: 42
+fixture:
+  surface_steps: 31
+  gap: 0.2
+  target_height: 1.2
+  epsilon: 0.0001
+render:
+  width: 640
+  height: 480
+  point_size: 3
+  background:
+  - 239
+  - 242
+  - 247
+  eye:
+  - 2.6
+  - 2.6
+  - 6.0
+  target:
+  - -0.4
+  - 0.55
+  - 0.0
+  fov_degrees: 48
+  near: 0.1
+  far: 50.0
+  margin_fraction: 0.05
+  min_visible_pixels: 100
+relations:
+  near_max: 0.5
+  far_min: 1.5
+  ground_epsilon: 0.0001
+  pose_translation_tolerance: 1.0e-06
+  pose_scale_tolerance: 1.0e-06
+  pose_rotation_tolerance_rad: 1.0e-05
+events:
+  min_distance_change: 0.2
+spatial:
+  gap: 0.2
+  near_max: 0.5
+  far_min: 1.5
+  epsilon: 0.0001
+  translation_tolerance: 1.0e-06
+  scale_tolerance: 1.0e-06
+  rotation_tolerance: 1.0e-05
+  max_evaluations: 5000
+  search_bounds:
+  - -6.0
+  - 6.0
+  - -6.0
+  - 6.0
+camera:
+  width: 960
+  height: 640
+  fov_degrees: 45.0
+  margin_fraction: 0.05
+  point_size: 3
+  min_visible_pixels: 1
+  min_visible_ratio: 1.0e-06
+  max_points: 120000

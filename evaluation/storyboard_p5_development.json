@@ -1,0 +1,22 @@
+{
+  "dataset_id": "p5-development-v1",
+  "split": "development, excluded from future P8 test set",
+  "preselected_gate_ids": ["D01", "D02", "D03"],
+  "cases": [
+    {"id":"D01","category":"approach_focus","prompt":"三幕：第一幕人物在熊的左侧，距离较远；第二幕人物向熊靠近，并来到熊的左侧附近；第三幕人物保持位置，镜头特写人物。熊始终保持原位。","expected_status":"succeeded","required_events":[[2,"approach","portrait_01","bear_01"],[3,"hold","portrait_01",null]],"required_constraints":[[1,"left_of","portrait_01","bear_01"],[1,"far","portrait_01","bear_01"],[2,"near","portrait_01","bear_01"]],"focus":[3,"portrait_01"]},
+    {"id":"D02","category":"retreat","prompt":"三幕：第一幕人物在熊的左侧附近；第二幕人物向左退远，最终与熊相隔较远；第三幕人物停在原处。熊一直不动，三幕都使用远景。","expected_status":"succeeded","required_events":[[2,"retreat","portrait_01","bear_01"],[3,"hold","portrait_01",null]],"required_constraints":[[1,"near","portrait_01","bear_01"],[2,"left_of","portrait_01","bear_01"],[2,"far","portrait_01","bear_01"]]},
+    {"id":"D03","category":"disappear_appear","prompt":"三幕：第一幕人物在熊的左侧附近，两者可见；第二幕人物消失，只留下熊；第三幕人物在第一幕的位置重新出现。熊始终不动，镜头都用远景。","expected_status":"succeeded","required_events":[[2,"disappear","portrait_01",null],[3,"appear","portrait_01",null]],"required_constraints":[[1,"left_of","portrait_01","bear_01"],[1,"near","portrait_01","bear_01"]]},
+    {"id":"D04","category":"left_near_hold","prompt":"三幕远景：人物在熊左侧附近；第二幕两者保持位置；第三幕仍保持位置。旁白写一段安静等待的小故事，不增加动作或角色。","expected_status":"succeeded","required_constraints":[[1,"left_of","portrait_01","bear_01"],[1,"near","portrait_01","bear_01"]],"required_events":[[2,"hold","portrait_01",null],[3,"hold","portrait_01",null]]},
+    {"id":"D05","category":"right_near_hold","prompt":"三幕：人物始终位于熊右侧附近。先远景介绍两者，第二幕人物保持位置，第三幕继续保持并特写熊。","expected_status":"succeeded","required_constraints":[[1,"right_of","portrait_01","bear_01"],[1,"near","portrait_01","bear_01"]],"required_events":[[2,"hold","portrait_01",null],[3,"hold","portrait_01",null]],"focus":[3,"bear_01"]},
+    {"id":"D06","category":"approach_still_far","prompt":"三幕：人物先在熊左侧远处；第二幕人物向熊靠近至少0.2U，但仍然保持 far（至少1.5U的地面包围盒间距）；第三幕保持第二幕的位置。只用远景。","expected_status":"succeeded","required_events":[[2,"approach","portrait_01","bear_01"],[3,"hold","portrait_01",null]],"required_constraints":[[1,"far","portrait_01","bear_01"],[2,"far","portrait_01","bear_01"]]},
+    {"id":"D07","category":"static_side_change","prompt":"三幕静态布局：人物第一幕在熊左侧附近，第二幕改到熊右侧附近，第三幕保持第二幕的位置。没有走路动画，只描述静态位置变化，熊不动。","expected_status":"succeeded","required_constraints":[[1,"left_of","portrait_01","bear_01"],[2,"right_of","portrait_01","bear_01"],[2,"near","portrait_01","bear_01"]],"required_events":[[3,"hold","portrait_01",null]]},
+    {"id":"D08","category":"focus_only","prompt":"人物和熊保持输入场景的位置。三幕分别用远景、熊的特写、远景。两者在第二幕和第三幕都保持原位，不需要其他动作。","expected_status":"succeeded","required_events":[[2,"hold","portrait_01",null],[2,"hold","bear_01",null],[3,"hold","portrait_01",null],[3,"hold","bear_01",null]],"focus":[2,"bear_01"]},
+    {"id":"D09","category":"metaphor_hold","prompt":"三幕：人物在熊左侧附近，随后两幕都保持位置。旁白可以用“等待像一盏灯”作隐喻，但不要生成灯或其他新对象。镜头远景即可。","expected_status":"succeeded","required_constraints":[[1,"left_of","portrait_01","bear_01"],[1,"near","portrait_01","bear_01"]],"required_events":[[2,"hold","portrait_01",null],[3,"hold","portrait_01",null]]},
+    {"id":"D10","category":"other_subject_visibility","prompt":"三幕远景：第一幕人物与熊均可见，位置保持输入场景；第二幕熊消失，人物不动；第三幕熊回到原位重新出现。","expected_status":"succeeded","required_events":[[2,"disappear","bear_01",null],[3,"appear","bear_01",null]]},
+    {"id":"D11","category":"unsupported_action","prompt":"三幕：人物拿起熊，把熊抱在怀里，然后放下熊。必须真的完成拿起和抱住，不接受改成靠近。","expected_status":"needs_clarification","reason":"unsupported_action"},
+    {"id":"D12","category":"unknown_asset","prompt":"让兔子先出场，再走到熊旁边，最后人物看向兔子。兔子是必须出现的新角色。","expected_status":"needs_clarification","reason":"unknown_asset"},
+    {"id":"D13","category":"ambiguous_subject","prompt":"先展示人物和熊，然后让它靠近一点，最后保持。这里“它”没有指定是人物还是熊，请不要猜测。","expected_status":"needs_clarification","reason":"ambiguous_reference"},
+    {"id":"D14","category":"contradictory_spatial","prompt":"第一幕要求人物同时在熊的左侧和右侧，并且两项关系都必须成立；后两幕保持。不要删去任何一个要求。","expected_status":"needs_clarification","reason":"contradictory_constraints"},
+    {"id":"D15","category":"unsupported_motion","prompt":"人物绕着熊走一整圈，第二幕转身挥手，第三幕坐到熊背上。这些动作必须可见，不能用静态靠近替代。","expected_status":"needs_clarification","reason":"unsupported_action"}
+  ]
+}

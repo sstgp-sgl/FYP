@@ -48,6 +48,10 @@
     </div>
   </div>
   <div id="right">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>🎬 语言驱动的三维点云场景导览</span>
+      <a href="/tour" style="color:#8ab4f8;">打开场景导览 →</a>
+    </div>
     <div class="card">
       <h3>1 · 上传图片</h3>
       <input type="file" id="file" accept="image/*">
@@ -305,7 +309,8 @@ async function pollWorkflow() {
     const btns = (s.status === "done" && s.stage === "reconstruct")
       ? `<button class="pcbtn" data-act="view" data-subj="${s.name}">🔍 查看</button>
          <button class="pcbtn" data-act="dl" data-subj="${s.name}">⬇ 下载 PLY</button>
-         <button class="pcbtn" data-act="viser" data-subj="${s.name}">🖥 Viser</button>`
+         <button class="pcbtn" data-act="viser" data-subj="${s.name}">🖥 Viser</button>
+         <button class="pcbtn" data-act="tour" data-subj="${s.name}">🗺 用于导览</button>`
       : "";
     html += `<div class="wfrow"><b>${s.name}</b> · ${stageLabel} · ${statusLabel}${s.error ? " · " + s.error : ""}
       <div class="thumbs">${views}</div>${btns}</div>`;
@@ -325,6 +330,16 @@ async function pollWorkflow() {
         $("status").textContent = j.error
           ? "Viser 启动失败: " + j.error
           : "Viser 已启动 → " + j.url + "（浏览器打开 http://localhost:8080）";
+      } else if (act === "tour") {
+        $("status").textContent = "正在把重建结果导入场景导览…";
+        const r = await fetch("/api/tour/scenes/from-reconstruction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject: name, title: "重建结果 " + name }),
+        });
+        const j = await r.json();
+        if (j.error) { $("status").textContent = "导入导览失败: " + j.error.message; return; }
+        window.location.href = "/tour";
       }
     });
   });

@@ -1,0 +1,11 @@
+{
+  "name": "fyp-tour-e2e",
+  "private": true,
+  "description": "Browser tests for the FYP scene tour (Playwright only; the web pages need no Node at runtime)",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.1"
+  }
+}

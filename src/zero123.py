@@ -205,12 +205,29 @@ def generate_views_for_subjects(
     if not subjects:
         raise ValueError("subjects.json has no subjects")
 
+    # ``views.model`` / ``views.custom_pipeline`` may be a hub id (default) or a
+    # local path. Local paths are resolved against the repo root so an offline
+    # cluster run never needs the hub. Defaults keep the original behaviour.
+    repo_root = Path(__file__).resolve().parents[1]
+
+    def _resolve(value: str) -> str:
+        candidate = Path(value)
+        if candidate.is_absolute():
+            return str(candidate)
+        local = repo_root / candidate
+        return str(local.resolve()) if local.exists() else value
+
+    model_ref = _resolve(cfg["views"]["model"])
+    custom_pipeline = _resolve(
+        cfg["views"].get("custom_pipeline", "sudo-ai/zero123plus-pipeline")
+    )
+
     pipe = DiffusionPipeline.from_pretrained(
-        cfg["views"]["model"],
-        custom_pipeline="sudo-ai/zero123plus-pipeline",
+        model_ref,
+        custom_pipeline=custom_pipeline,
         torch_dtype=torch.float16,
     ).to(cfg["device"])
-    print(f"[zero123++] loaded {cfg['views']['model']} on {cfg['device']}")
+    print(f"[zero123++] loaded {model_ref} on {cfg['device']}")
 
     subjects_dir = Path(subjects_dir)
     views_root = Path(views_root)

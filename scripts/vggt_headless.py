@@ -104,7 +104,7 @@ def main() -> int:
     parser.add_argument("--box", help="x0,y0,x1,y1 pixel box (with --prompt box)")
     parser.add_argument("--point", help="x,y pixel point (with --prompt point)")
     parser.add_argument("--name", help="subject name; defaults to the image stem")
-    parser.add_argument("--views", type=int, choices=[6, 7], default=7, help="6 generated or 6+original")
+    parser.add_argument("--views", type=int, choices=[6, 7], default=6, help="6 generated or 6+original")
     parser.add_argument("--image-size", type=int, default=None, help="override cfg image_size (default 512)")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--skip-views", action="store_true", help="reuse existing <out>/views")
