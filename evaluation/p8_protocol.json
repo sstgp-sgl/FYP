@@ -3,16 +3,74 @@
   "scope": "User approved exploratory comparisons; not an independent held-out test set",
   "annotation": "Five expected behaviors confirmed by user before model runs on 2026-11-23; assistant encoded numeric requirements. Full narration semantics awaits human review.",
   "seed": 20261123,
-  "methods": ["b0", "b1", "ours"],
-  "pilot": {"group_ids":["person_bear"], "task_ids":["T1","T2","T3","T4","T5"], "repeats":1},
-  "planned_main": {"group_ids":["person_duck","bear_duck"], "task_ids":["T1","T2","T3"], "repeats":3},
-  "maximum_call_limits": {"b0":1,"b1":1,"ours":3,"b0_budget3":3,"b1_budget3":3},
-  "shared": {"model":"deepseek-v4-pro","temperature":0,"thinking":"disabled","max_output_tokens":3072,"call_timeout_seconds":120,"point_count_per_asset":30000,"camera_width":640,"camera_height":480,"render_max_points":60000},
+  "methods": [
+    "b0",
+    "b1",
+    "ours"
+  ],
+  "pilot": {
+    "group_ids": [
+      "person_bear"
+    ],
+    "task_ids": [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5"
+    ],
+    "repeats": 1
+  },
+  "planned_main": {
+    "group_ids": [
+      "person_duck",
+      "bear_duck"
+    ],
+    "task_ids": [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5"
+    ],
+    "repeats": 3,
+    "group_task_ids": {
+      "person_duck": [
+        "T1",
+        "T2",
+        "T4"
+      ],
+      "bear_duck": [
+        "T3",
+        "T4",
+        "T5"
+      ]
+    }
+  },
+  "maximum_call_limits": {
+    "b0": 1,
+    "b1": 1,
+    "ours": 3,
+    "b0_budget3": 3,
+    "b1_budget3": 3
+  },
+  "shared": {
+    "model": "deepseek-v4-pro",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 3072,
+    "call_timeout_seconds": 120,
+    "point_count_per_asset": 30000,
+    "camera_width": 640,
+    "camera_height": 480,
+    "render_max_points": 60000
+  },
   "selection": "Keep all failed attempts; no choosing by hidden task answers. First executor-valid candidate is accepted. Baseline budget3 uses the same maximum call budget with executor-format/physical feedback only, never hidden annotations.",
   "baseline_b1": "Static relations, keep_pose and explicit per-frame visibility with ordinary inheritance, events=[] in model output; no approach/retreat/hold solver or model repair. Visibility booleans are adapted to existing appearance operations without inferring user intent.",
   "ablations": "no_feedback uses saved first Ours response; no_state and fixed_camera use saved accepted response (last response if none accepted), with exactly one mechanism changed. Replays are not new API calls or independent model samples.",
   "freeze": "Commit and hashes must be frozen before every batch. Do not tune prompts or thresholds using the exploratory main results.",
   "statistics": "Aggregate repeats within task, then source-pair group. Shared source groups make descriptive intervals dependent; no population generalization claim. Never treat three frames as independent samples.",
   "narration": "15–60 characters requested for all methods. Full fact support/naturalness require human annotation; do not score model fact_claims as truth.",
-  "human_review": "Prepare blinded paired comparisons and two-rater overlap forms; do not invent participants or ratings. User may review later."
+  "human_review": "Prepare blinded paired comparisons and two-rater overlap forms; do not invent participants or ratings. User may review later.",
+  "main_plan_version": "balanced-54-v1: all five confirmed task types, focus in both groups, frozen before any main result"
 }

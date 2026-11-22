@@ -23,3 +23,12 @@ def test_expected_target_visibility_is_not_model_self_reported_visibility(frozen
  assert result['raw_references']['rate']==1
  assert result['user_target_visible_frames']==2
  assert not result['structured_success']
+
+def test_frozen_main_plan_has_all_five_task_types_and_focus_in_both_groups():
+ from scripts.benchmark_storyboard import eligible_tasks
+ from src.scene.storage import read_json
+ protocol=read_json(Path(__file__).resolve().parents[2]/'evaluation/p8_protocol.json')
+ data=tasks('person_duck',['人物','橡皮鸭'])+tasks('bear_duck',['熊','橡皮鸭'])
+ chosen=eligible_tasks(data,protocol['planned_main'])
+ assert len(chosen)==6 and {t['id'] for t in chosen}=={'T1','T2','T3','T4','T5'}
+ assert sum(t['id']=='T4' for t in chosen)==2

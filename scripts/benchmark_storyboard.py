@@ -16,6 +16,9 @@ def manifest_ok(root):
   if sha256(Path(path))!=expected:raise ValueError('frozen code changed: '+path)
  return d
 
+def eligible_tasks(tasks,spec):
+ return [task for task in tasks if task['group_id'] in spec['group_ids'] and task['id'] in spec['task_ids'] and task['id'] in spec.get('group_task_ids',{}).get(task['group_id'],spec['task_ids'])]
+
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--frozen',required=True,type=Path);p.add_argument('--out',required=True,type=Path);p.add_argument('--phase',choices=['pilot','main','sensitivity','ablation','report'],required=True);p.add_argument('--key-file',type=Path);p.add_argument('--source-batch',type=Path);a=p.parse_args()
  if a.key_file:os.environ['FYP_LLM_API_KEY']=a.key_file.read_text().strip()
@@ -34,7 +37,7 @@ def main():
  methods=protocol['methods'];repeats=spec['repeats']
  if a.phase=='sensitivity':methods=['b0_budget3','b1_budget3'];repeats=1
  if a.phase=='ablation':methods=['no_feedback','no_state','fixed_camera'];repeats=1
- schedule=[(task,method,repeat) for task in all_tasks if task['group_id'] in spec['group_ids'] and task['id'] in spec['task_ids'] for method in methods for repeat in range(repeats)]
+ schedule=[(task,method,repeat) for task in eligible_tasks(all_tasks,spec) for method in methods for repeat in range(repeats)]
  random.Random(protocol['seed']).shuffle(schedule)
  existing=read_json(a.out/'batch.json') if (a.out/'batch.json').exists() else None
  batch=dict(protocol=PROTOCOL,phase=a.phase,frozen_sha256=sha256(a.frozen/'freeze.json'),code_commit=freeze['code_commit'],planned_runs=len(schedule))
