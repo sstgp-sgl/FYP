@@ -2,7 +2,7 @@
 
 更新日期：2026 年 11 月 23 日。
 
-本说明书按“先看效果，再执行完整流程”的顺序，介绍项目在哪里、命令在哪台机器执行、如何启动网页、选择主体和重建、生成与修改故事，以及下载和检查结果。当前主要功能为 P0–P7；P8 正在进行探索性评估，最终结果以 P8 报告为准，P9 尚未开始。
+本说明书按“先看效果，再执行完整流程”的顺序，介绍项目在哪里、命令在哪台机器执行、如何启动网页、选择主体和重建、生成与修改故事，以及下载和检查结果。当前主要功能为 P0–P7，P8 已完成本轮探索性比较；详细范围与结果见 [P8 报告](progress/P8.md)。独立来源正式评估和人工评价仍待补充，P9 尚未开始。
 
 ## 1. 先分清本地和服务器
 
@@ -295,13 +295,13 @@ run.json             方法、参数、输入哈希、计时和成功/失败原�
 以下环境变量可放入自己的 Slurm CPU 作业脚本：
 
 ```bash
-P8_PY="$HOME/work/runs/p0/20261119-regression-01/test-env/bin/python"
+STORY_PY="$HOME/work/runs/p0/20261119-regression-01/test-env/bin/python"
 export PYTHONPATH="$HOME/work/envs/bear-compare/lib/python3.11/site-packages:$HOME/work/code/FYP:$HOME/work/deps/vggt"
 export PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
 cd "$HOME/work/code/FYP"
 ```
 
-这里的 `P8_PY` 只是解释器路径变量名，并不表示只能用于 P8。已有资产的 CPU 故事和编辑不需要 GPU；新的图像分割/重建仍需要 GPU。
+`STORY_PY` 保存现有解释器的路径，调用时使用 `"$STORY_PY" scripts/脚本名.py`。已有资产的 CPU 故事和编辑不需要 GPU；新的图像分割/重建仍需要 GPU。
 
 ### 8.2 使用现有冻结资产执行一次新故事
 

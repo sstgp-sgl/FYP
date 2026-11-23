@@ -4,7 +4,7 @@
 
 第一次运行请看 [详细代码执行说明书](docs/execution-guide-zh.md)：按 Mac/HPC/Slurm 区分命令，包含网页启动、主体选择、三种重建、故事与编辑 CLI、P8 评估、下载和故障排查。
 
-当前已完成 P0–P7：SAM2 主体选择、三种可切换重建方法、资产管理、空间布局、故事理解、网页集成及局部修改版本保持。
+当前已完成 P0–P7，以及 P8 小样本探索性评估：SAM2 主体选择、三种可切换重建方法、资产管理、空间布局、故事理解、网页集成、局部修改版本保持与基线/消融比较。
 
 ![实际生成的三幕分镜](docs/images/p6-storyboard.png)
 
@@ -81,6 +81,12 @@ python scripts/reconstruct_asset.py --method hunyuan \
 
 输出为 `foreground.png`、`pointcloud.ply` 和 `run.json`。默认统一 120,000 点；TripoSR/Hunyuan 当前输出灰色几何，不生成纹理。模型安装、参数和限制见 [重建模块说明](docs/reconstruction-methods.md)。
 
+## 4. 查看 P8 方法比较
+
+探索性主比较共 54 次，B0 直接坐标、B1 静态关系、Ours 满足全部预定结构化条件分别为 **8/18、13/18、18/18**。另保留 12 次预算对照、18 次已有响应消融及全部失败。数据只有三个原图来源，旁白完整语义未人工评分，结果不代表独立测试集泛化或重建质量。
+
+完整协议、结果和查看路径见 [P8 报告](docs/progress/P8.md)。[运行说明书第 10–11 节](docs/execution-guide-zh.md#10-p8-方法比较如何执行和查看)说明如何离线重建表格、下载并打开 HTML 报告；查看已有结果无需重新调用模型。正式独立数据与人类评价仍待补充。
+
 ## 代码与测试
 
 - `src/reconstruction_methods/`：三种重建适配器。
@@ -94,4 +100,4 @@ python scripts/reconstruct_asset.py --method hunyuan \
 python -m pytest -q tests/storyboard
 ```
 
-P6 完成时 HPC 全量回归为 **327 passed**，两条真实浏览器流程通过。P7 新增受控编辑和版本保持；验收报告见 [P7](docs/progress/P7.md)。自动测试中的模型替身不能代替 GPU 重建质量评估。详细运行记录见 [P6 报告](docs/progress/P6.md)。点云、照片、模型权重、运行目录和密钥不上传 GitHub；P8/P9 尚未开始。当前能力、限制及后续事项见 [项目能力说明](docs/current-capabilities.md)。
+P8 冻结代码的 HPC 全量回归为 **359 passed，1 warning**。P7 受控编辑验收见 [P7](docs/progress/P7.md)，P6 真实网页流程见 [P6 报告](docs/progress/P6.md)。自动测试不能代替 GPU 重建质量评估。点云、照片、模型权重、运行目录和密钥不上传 GitHub；P9 尚未开始。当前能力、限制及后续事项见 [项目能力说明](docs/current-capabilities.md)。
