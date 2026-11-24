@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from PIL import Image
 from src.reconstruction_methods import service
-from src.reconstruction_methods.common import prepare_foreground,sample_surface,write_ply
+from src.reconstruction_methods.common import prepare_foreground,sample_surface,write_ply,write_mesh_ply,read_mesh_ply
 
 
 def inputs(tmp_path):
@@ -87,3 +87,44 @@ def test_backend_failure_is_saved(tmp_path,monkeypatch):
     with pytest.raises(RuntimeError):service.reconstruct_asset('triposr',image,mask,tmp_path/'failure')
     r=json.loads((tmp_path/'failure/run.json').read_text())
     assert r['status']=='failed' and not r['artifacts']
+
+
+def test_colored_mesh_and_points_share_normalization_without_losing_rgb(tmp_path,monkeypatch):
+    image,mask=inputs(tmp_path);vertices=np.array([[0,0,0],[4,0,0],[0,2,0]])
+    faces=np.array([[0,1,2]],np.int32);rgb=np.array([[255,255,255],[255,0,0],[0,128,255]],np.uint8)
+    def backend(image,out,cfg):
+        write_mesh_ply(out/'mesh_native.ply',vertices,faces,rgb)
+        return vertices,rgb,dict(color_source='predicted_rgb')
+    fake_backend(monkeypatch,backend)
+    for gray in [False,True]:
+        out=tmp_path/str(gray);r=service.reconstruct_asset('triposr',image,mask,out,dict(points=3,gray=gray))
+        actual,indices,colors=read_mesh_ply(out/'mesh.ply')
+        assert np.array_equal(actual,(vertices-np.array([2,1,0]))*.5)
+        assert np.array_equal(indices,faces)
+        assert np.array_equal(colors,np.full(rgb.shape,180,np.uint8) if gray else rgb)
+        assert r['color']==('gray' if gray else 'predicted_rgb') and len(r['artifacts'])==3
+        from plyfile import PlyData
+        cloud=PlyData.read(str(out/'pointcloud.ply'))['vertex'].data
+        assert np.array_equal(np.column_stack([cloud[k] for k in ('red','green','blue')]),colors)
+
+
+def test_mesh_export_rejects_invalid_faces_and_color_types(tmp_path):
+    v=np.zeros((3,3));c=np.zeros((3,3),np.uint8)
+    with pytest.raises(ValueError,match='faces'):write_mesh_ply(tmp_path/'bad.ply',v,np.array([[0,1,3]]),c)
+    with pytest.raises(ValueError,match='RGB'):write_mesh_ply(tmp_path/'bad.ply',v,np.array([[0,1,2]]),c.astype(float))
+
+
+def test_triposr_queries_surface_rgb_in_native_coordinates_in_chunks():
+    torch=pytest.importorskip('torch')
+    from src.reconstruction_methods.triposr import query_colors
+    seen=[]
+    def query(decoder,positions,code):
+        seen.append(positions.cpu().numpy().copy())
+        return {'color':(positions+1)/2}
+    model=SimpleNamespace(decoder=None,renderer=SimpleNamespace(query_triplane=query));code=torch.zeros(1)
+    p=np.array([[1,0,-1],[-1,1,0],[0,-1,1]],np.float32)
+    rgb=query_colors(model,code,p,2)
+    assert np.array_equal(np.concatenate(seen),p) and len(seen)==2
+    assert np.array_equal(rgb,np.array([[255,128,0],[0,255,128],[128,0,255]],np.uint8))
+    model.renderer.query_triplane=lambda *args:{'color':torch.full((1,3),float('nan'))}
+    with pytest.raises(ValueError,match='RGB'):query_colors(model,code,p[:1],2)

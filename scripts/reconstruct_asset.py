@@ -12,6 +12,7 @@ def main():
     p.add_argument('--image',type=Path);p.add_argument('--mask',type=Path)
     p.add_argument('--out',type=Path);p.add_argument('--config',type=Path)
     p.add_argument('--points',type=int);p.add_argument('--seed',type=int)
+    p.add_argument('--color',action='store_true',help='Keep observed/predicted RGB when the selected backend supports it')
     a=p.parse_args()
     if a.list_methods:print('\n'.join(METHODS));return 0
     if not a.method or not a.image or not a.out:p.error('--method, --image and --out are required')
@@ -24,6 +25,7 @@ def main():
             cfg={**document.get('common',{}),**document.get('methods',{}).get(a.method,{})}
         for key in ('points','seed'):
             if getattr(a,key) is not None:cfg[key]=getattr(a,key)
+        if a.color:cfg['gray']=False
         run=reconstruct_asset(a.method,a.image,a.mask,a.out,cfg)
         print(json.dumps(run,ensure_ascii=False));return 0
     except Exception as exc:

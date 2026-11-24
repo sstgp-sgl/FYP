@@ -246,7 +246,10 @@ class JobStore:
 
     def collect(self,job_id):
         root=self.path(job_id);job=self.job(job_id)
-        for name in ['image.png','mask.png','foreground.png','reconstruction/pointcloud.ply','renders/asset_preview.png']:
+        reconstruction=root/'reconstruction/run.json'
+        ready=reconstruction.is_file() and read_json(reconstruction).get('status')=='succeeded'
+        for name in ['image.png','mask.png','foreground.png','reconstruction/pointcloud.ply','reconstruction/mesh.ply','reconstruction/viewer.html','reconstruction/run.json','renders/asset_preview.png']:
+            if name.startswith('reconstruction/') and not ready:continue
             if (root/name).is_file():
                 try:self.register(job_id,name)
                 except (OSError,ValueError):

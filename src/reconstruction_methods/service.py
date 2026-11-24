@@ -1,8 +1,8 @@
 """One masked input and PLY contract for all reconstruction methods."""
-import importlib,json,time
+import importlib,json,time,shutil
 from pathlib import Path
 import numpy as np
-from .common import prepare_foreground,sha256,write_ply
+from .common import prepare_foreground,sha256,write_ply,read_mesh_ply,write_mesh_ply
 
 METHODS=('vggt','triposr','hunyuan')
 DEFAULTS=dict(points=120000,seed=42,resolution=256,chunk_size=8192,steps=30,threshold=25.,gray=True,normalize=True)
@@ -47,9 +47,17 @@ def reconstruct_asset(method,image,mask,out,options=None):
             if extent<=0:raise ValueError('zero point cloud extent')
             center=(lo+hi)/2;scale=2/extent;points=(points-center)*scale
             run['normalization']=dict(center=center.tolist(),uniform_scale=scale,rotation='none; native backend axes retained')
-        if cfg['gray'] or colors is None:colors=np.full(points.shape,180,dtype=np.uint8)
+        has_color=not cfg['gray'] and colors is not None
+        if not has_color:colors=np.full(points.shape,180,dtype=np.uint8)
         run['artifacts']=[write_ply(root/'pointcloud.ply',points,colors)]
-        run.update(status='succeeded',backend=details,color='gray' if cfg['gray'] or method!='vggt' else 'source_rgb')
+        if (root/'mesh_native.ply').exists():
+            vertices,faces,rgb=read_mesh_ply(root/'mesh_native.ply')
+            if cfg['normalize']:vertices=(vertices-center)*scale
+            if not has_color:rgb=np.full(vertices.shape,180,dtype=np.uint8)
+            run['artifacts'].append(write_mesh_ply(root/'mesh.ply',vertices,faces,rgb))
+            shutil.copyfile(Path(__file__).resolve().parents[2]/'web/reconstruction/viewer.html',root/'viewer.html')
+            run['artifacts'].append(dict(file='viewer.html',sha256=sha256(root/'viewer.html')))
+        run.update(status='succeeded',backend=details,color=details.get('color_source','source_rgb') if has_color else 'gray')
     except Exception as exc:
         run.update(status='failed',error=type(exc).__name__+': '+str(exc));raise
     finally:

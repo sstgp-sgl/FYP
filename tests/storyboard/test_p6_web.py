@@ -186,3 +186,24 @@ def test_poll_during_incomplete_png_write_is_not_a_job_failure(settings):
         response=client.get('/api/p6/jobs/'+job_id)
         assert response.status_code==200 and response.json()['status']=='running' and not response.json()['artifacts']
         release.set();assert wait(client,job_id)['status']=='succeeded'
+
+
+def test_reconstruction_files_are_registered_only_after_color_export_finishes(settings):
+    from src.reconstruction_methods.common import write_mesh_ply
+    app=create_app(settings,start=False)
+    with TestClient(app) as client:
+        store=app.state.jobs;job_id=uuid.uuid4().hex;root=store.path(job_id);root.mkdir()
+        atomic_json(root/'job.json',dict(id=job_id,kind='asset',status='running',stage='reconstruction'))
+        rec=root/'reconstruction';rec.mkdir();atomic_json(rec/'run.json',dict(status='running'))
+        vertices=np.array([[0,0,0],[1,0,0],[0,1,0]],np.float32);faces=np.array([[0,1,2]])
+        write_mesh_ply(rec/'mesh.ply',vertices,faces,np.full((3,3),180,np.uint8))
+        first=client.get('/api/p6/jobs/'+job_id).json()
+        assert first['status']=='running' and first['artifacts']==[]
+        write_mesh_ply(rec/'mesh.ply',vertices,faces,np.array([[255,0,0],[0,255,0],[0,0,255]],np.uint8))
+        (rec/'viewer.html').write_text('<p>test viewer</p>')
+        atomic_json(rec/'run.json',dict(status='succeeded'));store.update(job_id,stage='asset_preview')
+        final=client.get('/api/p6/jobs/'+job_id).json()
+        assert final['status']=='running' and not final['integrity_errors']
+        assert {'mesh.ply','viewer.html','run.json'}<={a['name'] for a in final['artifacts']}
+        mesh=next(a for a in final['artifacts'] if a['name']=='mesh.ply')
+        assert client.get(f'/api/p6/jobs/{job_id}/artifacts/'+mesh['id']).status_code==200

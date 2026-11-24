@@ -46,3 +46,28 @@ def write_ply(path,points,colors):
     saved=PlyData.read(str(path))['vertex'].data
     if not np.array_equal(np.column_stack([saved[k] for k in 'xyz']),p) or not np.array_equal(np.column_stack([saved[k] for k in ('red','green','blue')]),c):raise ValueError('PLY readback differs')
     return dict(file=Path(path).name,points=len(p),sha256=sha256(path))
+
+
+def read_mesh_ply(path):
+    from plyfile import PlyData
+    data=PlyData.read(str(path));v=data['vertex'].data
+    points=np.column_stack([v[k] for k in 'xyz'])
+    colors=np.column_stack([v[k] for k in ('red','green','blue')])
+    faces=np.asarray(list(data['face'].data['vertex_indices']),dtype=np.int32)
+    return points,faces,colors
+
+
+def write_mesh_ply(path,vertices,faces,colors):
+    from plyfile import PlyData,PlyElement
+    v=np.asarray(vertices,dtype=np.float32);f=np.asarray(faces);c=np.asarray(colors)
+    if v.ndim!=2 or v.shape[1]!=3 or not len(v) or not np.isfinite(v).all():raise ValueError('invalid mesh vertices')
+    if f.ndim!=2 or f.shape[1]!=3 or not len(f) or not np.issubdtype(f.dtype,np.integer) or f.min()<0 or f.max()>=len(v):raise ValueError('invalid mesh faces')
+    if c.shape!=v.shape or c.dtype!=np.uint8:raise ValueError('mesh RGB must be matching uint8')
+    data=np.empty(len(v),dtype=[(k,'f4') for k in 'xyz']+[(k,'u1') for k in ('red','green','blue')])
+    for i,k in enumerate('xyz'):data[k]=v[:,i]
+    for i,k in enumerate(('red','green','blue')):data[k]=c[:,i]
+    triangles=np.empty(len(f),dtype=[('vertex_indices','i4',(3,))]);triangles['vertex_indices']=f
+    PlyData([PlyElement.describe(data,'vertex'),PlyElement.describe(triangles,'face')],text=False,byte_order='<').write(str(path))
+    actual,indices,rgb=read_mesh_ply(path)
+    if not np.array_equal(actual,v) or not np.array_equal(indices,f) or not np.array_equal(rgb,c):raise ValueError('mesh PLY readback differs')
+    return dict(file=Path(path).name,vertices=len(v),faces=len(f),sha256=sha256(path))

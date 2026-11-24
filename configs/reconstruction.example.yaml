@@ -10,6 +10,7 @@ methods:
     # Optional: reuse an existing generated views.json directory.
     # views_dir: /path/to/views/subject
   triposr:
+    gray: false
     repo: /path/to/TripoSR
     weights: /path/to/TripoSR-weights
     resolution: 256
