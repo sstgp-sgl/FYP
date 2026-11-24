@@ -81,6 +81,8 @@ python scripts/reconstruct_asset.py --method triposr --color \
 
 输出为 `foreground.png`、`pointcloud.ply` 和 `run.json`，默认统一 120,000 点。TripoSR 的 `--color` 会保留模型预测 RGB，并输出彩色三角网格 `mesh.ply` 和可旋转、带光照、可导出 PNG 的 `viewer.html`；不做 UV 纹理烘焙。Hunyuan 仍为灰色纯几何。模型安装、参数和限制见 [重建模块说明](docs/reconstruction-methods.md)。
 
+同一熊图已完成真实彩色重建及网页验收，结果和限制见 [TripoSR 彩色渲染验证](docs/progress/TripoSR_color_20261124.md)。粤剧人物关键帧和场景时间轴尚未实现。
+
 ## 4. 查看 P8 方法比较
 
 探索性主比较共 54 次，B0 直接坐标、B1 静态关系、Ours 满足全部预定结构化条件分别为 **8/18、13/18、18/18**。另保留 12 次预算对照、18 次已有响应消融及全部失败。数据只有三个原图来源，旁白完整语义未人工评分，结果不代表独立测试集泛化或重建质量。
