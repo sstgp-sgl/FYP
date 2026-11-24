@@ -74,12 +74,12 @@ ssh -N -L 17862:实际节点:17862 -o ControlPath=none xjtlu
 python scripts/reconstruct_asset.py --list-methods
 cp configs/reconstruction.example.yaml configs/reconstruction.local.yaml
 # 修改 local.yaml 中的模型路径，然后在 GPU 环境执行：
-python scripts/reconstruct_asset.py --method hunyuan \
+python scripts/reconstruct_asset.py --method triposr --color \
   --image /path/to/photo.jpg --mask /path/to/mask.png \
   --config configs/reconstruction.local.yaml --out outputs/my-subject
 ```
 
-输出为 `foreground.png`、`pointcloud.ply` 和 `run.json`。默认统一 120,000 点；TripoSR/Hunyuan 当前输出灰色几何，不生成纹理。模型安装、参数和限制见 [重建模块说明](docs/reconstruction-methods.md)。
+输出为 `foreground.png`、`pointcloud.ply` 和 `run.json`，默认统一 120,000 点。TripoSR 的 `--color` 会保留模型预测 RGB，并输出彩色三角网格 `mesh.ply` 和可旋转、带光照、可导出 PNG 的 `viewer.html`；不做 UV 纹理烘焙。Hunyuan 仍为灰色纯几何。模型安装、参数和限制见 [重建模块说明](docs/reconstruction-methods.md)。
 
 ## 4. 查看 P8 方法比较
 

@@ -5,6 +5,10 @@ from pathlib import Path
 
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run-root',required=True,type=Path);a=p.parse_args();code=Path(__file__).resolve().parents[1];root=a.run_root.resolve();frozen=root/'frozen';summary={}
+ if (root/'code_snapshot').is_dir():
+  code=root/'code_snapshot'
+  for name in ['benchmark_storyboard.py','report_p8.py','analyze_p8.py']:
+   if not (code/'scripts'/name).is_file():raise RuntimeError('Incomplete frozen code snapshot: '+name)
  for phase in ['main','sensitivity','ablation']:
   batch=root/phase;config=json.loads((batch/'batch.json').read_text());count=len(list((batch/'runs').glob('*/result.json')))
   if count!=config['planned_runs']:raise RuntimeError(f'{phase} incomplete: {count}/{config["planned_runs"]}; no complete-study claim')

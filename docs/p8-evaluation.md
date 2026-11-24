@@ -60,6 +60,8 @@ python scripts/evaluate_p8.py --run-root /absolute/path/to/complete/p8-run
 
 该命令要求主比较、预算对照和消融的所有预登记运行均有记录；中断或未完成批次不会被当成完整研究。
 
+后续重建代码升级后，该入口优先使用运行目录的不可变 `code_snapshot/` 重新评分旧批次，仍然检查其原始源码哈希，不用新版本重建适配器替换 P8 历史执行代码。
+
 `python scripts/summarize_p8.py --run-root /absolute/path/to/complete/p8-run` 可将三部分结果汇总成同目录下的 `index.html`。它只读取表格和独立审计，展示全部案例入口及数据局限；不会发出模型调用。
 
 本轮六份资产变体只作来源清单，主比较实际使用人物 VGGT、熊 Hunyuan 和鸭 VGGT；并未分别测试全部重建变体。新增鸭 Hunyuan 作为形状较差的资产检查样本保留，太阳镜因掩码和形状失败排除出故事布局。两者均保留检查记录，不用于声称资产质量通过。

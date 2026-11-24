@@ -18,6 +18,7 @@
   "reconstruction": {
     "common": {"points": 120000, "gray": true, "normalize": true},
     "methods": {
+      "triposr": {"repo": "/absolute/path/TripoSR", "weights": "/absolute/path/TripoSR-weights", "gray": false, "resolution": 256, "threshold": 25.0},
       "hunyuan": {"repo": "/absolute/path/Hunyuan3D-2", "weights": "/absolute/path/Hunyuan3D-2mini/hunyuan3d-dit-v2-mini", "resolution": 256, "steps": 30}
     }
   }

@@ -6,6 +6,7 @@ export. No model is imported by `--help` or `--list-methods`.
 - `vggt`: the existing Zero123++ → VGGT path. Optionally reuse a generated
   `views.json` directory to skip view generation.
 - `triposr`: single-image TripoSR, 256 grid by default, density threshold 25.
+  Supports predicted RGB on sampled points and a vertex-colored triangle mesh.
 - `hunyuan`: Hunyuan3D-2mini standard fp16 shape model, 30 steps and 256
   extraction resolution by default. Texture generation is separate.
 
@@ -48,7 +49,7 @@ pipeline config is still resolved with the project's established rules.
 
 ```bash
 python scripts/reconstruct_asset.py --list-methods
-python scripts/reconstruct_asset.py --method triposr \
+python scripts/reconstruct_asset.py --method triposr --color \
   --image /path/to/photo.jpg --mask /path/to/selected/mask.png \
   --config configs/reconstruction.local.yaml --out outputs/subject-triposr
 python scripts/reconstruct_asset.py --method hunyuan \
@@ -81,8 +82,26 @@ success fallback to another backend. The PLY is read back to check XYZ/RGB.
 
 Defaults: 120,000 points, gray RGB=180, bbox-centered uniform scaling to longest
 side 2. Native axis conventions are retained: rotate separately when comparing
-models. With `gray: false`, VGGT retains observed colors; the two shape-only
-adapters still output gray. They do not claim to generate texture.
+models. With `gray: false` or CLI `--color`, VGGT retains observed colors and
+TripoSR queries predicted RGB in native model coordinates before normalization.
+Hunyuan remains geometry-only and returns gray. The shared default remains
+`gray: true` for reproducibility; the example TripoSR method overrides it to false.
+
+TripoSR also saves `mesh.ply` with triangle faces and vertex RGB, plus an
+offline-capable `viewer.html`. The mesh uses exactly the point cloud's output
+normalization; `mesh_native.ply` retains the intermediate native coordinates.
+No UV atlas or image texture is baked. Back/hidden-surface colors are model
+predictions, not observations. Old gray files are unchanged and need a new run
+to obtain predicted RGB.
+
+Serve the output folder locally with `python -m http.server 8001 --bind 127.0.0.1`
+and open `viewer.html`, or open the HTML directly and choose `mesh.ply` using
+the file input. The viewer uses local WebGL2 without a CDN, supports rotation,
+zoom, a gray comparison, optional surface lighting, and current-view PNG export.
+It is a TripoSR Z-up viewer; display converts the native axes to Y-up without
+rewriting downloaded geometry. The website's artifact ZIP includes mesh,
+point cloud and viewer after successful reconstruction. GPU models are still
+required for inference, but browsing an exported asset does not need HPC.
 
 TripoSR/Hunyuan points are triangle-area samples. VGGT samples existing
 observations; when fewer observations exist, repeated samples are explicitly

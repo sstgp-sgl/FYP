@@ -215,7 +215,7 @@ curl --noproxy '*' -I http://127.0.0.1:17862/
 - `triposr`：同一前景直接生成几何，当前默认 256 提取分辨率。
 - `hunyuan`：Hunyuan3D-2mini 纯几何，当前默认 30 步、256 提取分辨率。
 
-后两种当前输出灰色几何，**不生成纹理**。把 `gray` 设为 false 也不会自动给 Hunyuan 加上颜色。名称确认不等于朝向确认；资产仍标为 proposed 时应人工检查上下、前后。
+TripoSR 现在支持预测 RGB：使用 `--color` 或该方法配置 `gray: false`，可输出彩色点云、彩色三角网格及 WebGL 查看器；不做 UV 纹理烘焙。Hunyuan 当前仍为灰色几何，把 `gray` 设为 false 不会自动给它上色。旧灰色资产需新建重建任务，不能只刷新页面恢复颜色。名称确认不等于朝向确认；资产仍标为 proposed 时应人工检查上下、前后。
 
 ### 6.3 使用已有资产生成故事
 
@@ -261,7 +261,7 @@ cp configs/reconstruction.example.yaml configs/reconstruction.local.yaml
 ```bash
 python scripts/reconstruct_asset.py --list-methods
 
-python scripts/reconstruct_asset.py --method triposr \
+python scripts/reconstruct_asset.py --method triposr --color \
   --image /path/to/photo.jpg --mask /path/to/mask.png \
   --config configs/reconstruction.local.yaml --out /path/to/new-triposr-run
 
@@ -283,6 +283,8 @@ foreground.png       实际送入重建的 RGBA 前景
 pointcloud.ply       统一 XYZ/RGB 点云
 run.json             方法、参数、输入哈希、计时和成功/失败原因
 ```
+
+TripoSR 还输出 `mesh.ply`（顶点 RGB 与三角面）、`mesh_native.ply`（未归一化中间网格）和 `viewer.html`。把输出目录作为静态网站打开后可旋转模型、开关光照、与灰色对照，并导出当前视角 PNG；双击 HTML 也可用文件选择器载入 `mesh.ply`。下载的网格和点云保持原始 TripoSR Z-up，查看器只在显示时转换为 Y-up。隐藏部位的颜色仍由模型推测。
 
 后端还可能保存额外中间产物。默认归一化把最长边缩放到 2，保留各后端原始轴向；同点数不代表相同采样过程。比较时检查 `foreground.png`，再看侧面/背面、碎片、缺面和四肢连接。
 
