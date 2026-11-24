@@ -558,3 +558,7 @@ python -m pytest -q tests/test_reconstruction_methods.py
 需要完整项目检查时用 `python -m pytest -q tests`。HPC 测试也放入 Slurm CPU 作业。本轮冻结代码的全量记录为 359 passed、1 warning；这证明相应测试通过，不替代真实重建和人类叙事评价。
 
 想先走完一遍，建议顺序为：CPU 演示 → P7 已有资产网页 → P6 新图 SAM2/重建 → 下载 PLY → CLI 单次故事 → P8 已保存结果。先掌握每一步的输入和输出，再改模型或增加复杂度。
+
+## 粤剧视频关键帧与三维结果
+
+启动网页后打开 `/video`，上传视频并选择最长180秒片段，生成镜头时间轴。先人工挑选全身清晰、遮挡少的关键帧，再选择演员执行 SAM 和 TripoSR。新增视频任务会保留预测颜色。完整操作、依赖和命令行导入见 [粤剧视频说明](cantonese-video.md)。

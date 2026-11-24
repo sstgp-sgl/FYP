@@ -34,6 +34,8 @@ class JobStore:
                 job.update(status='interrupted',stage='interrupted',error='服务重启中断了任务；请用新请求重试。');atomic_json(p,job)
         self.assets_path=self.root/'assets.json'
         if not self.assets_path.exists():atomic_json(self.assets_path,settings.get('assets',[]))
+        from .video import VideoProjects
+        self.videos=VideoProjects(self)
         self.thread=threading.Thread(target=self._worker,daemon=True)
         if start:self.thread.start()
 
@@ -64,7 +66,7 @@ class JobStore:
         return read_json(path/'upload.json')
 
     def submit(self,kind,request_id,payload):
-        if kind not in {'story','segment','asset','edit'}:raise ValueError('unknown job kind')
+        if kind not in {'story','segment','asset','edit','video'}:raise ValueError('unknown job kind')
         job_id=uid(request_id);digest=fingerprint(dict(kind=kind,payload=payload));root=self.path(job_id)
         with self.lock:
             if root.exists():
@@ -84,6 +86,8 @@ class JobStore:
                     if payload['base_version']!=state['current_version']:raise FileExistsError('版本已过期，请刷新后重试')
                     edit={k:v for k,v in payload.items() if k!='story_job_id' and v is not None}
                     atomic_json(root/'edit-request.json',edit)
+                elif kind=='video':
+                    self.videos.get(payload['project_id'])
                 elif kind=='segment':
                     upload=self.root/'uploads'/uid(payload['upload_id']);meta=read_json(upload/'upload.json')
                     if sha256(upload/'image.png')!=meta['sha256']:raise ValueError('上传图片已改变')
@@ -95,10 +99,12 @@ class JobStore:
                 else:
                     previous=self.job(payload['segment_id']);prior=self.path(payload['segment_id'])
                     if previous['kind']!='segment' or previous['status']!='succeeded':raise ValueError('请先完成并确认分割')
-                    if not payload['name'].strip() or len(payload['name'])>50 or payload.get('name_confirmed') is not True:raise ValueError('请确认资产名称')
+                    if not payload['name'].strip() or len(payload['name'])>50:raise ValueError('请填写主体名称')
+                    if payload.get('register_asset',True) and payload.get('name_confirmed') is not True:raise ValueError('请确认资产名称')
                     if payload['method'] not in self.settings['reconstruction']['methods']:raise ValueError('重建方法未配置')
                     for name in ['image.png','mask.png']:shutil.copyfile(self.artifact_path(previous['id'],self.register(previous['id'],name)),root/name)
                     job['reconstruction_options']={**self.settings['reconstruction'].get('common',{}),**self.settings['reconstruction']['methods'][payload['method']]}
+                    if payload.get('video_color'):job['reconstruction_options']['gray']=False
                 job.update(status='queued',stage='queued');atomic_json(root/'job.json',job);self.pending.put(job_id)
             except Exception as exc:
                 job.update(status='failed',stage='input',error=str(exc));atomic_json(root/'job.json',job);raise
@@ -141,6 +147,9 @@ class JobStore:
                 try:self.collect(job_id)
                 except Exception:pass
 
+    def execute_video(self,job_id):
+        self.videos.analyze(job_id)
+
     def execute_segment(self,job_id):
         import gc,torch
         from src.segment import build_sam2_predictor,select_multimask_index
@@ -160,6 +169,8 @@ class JobStore:
         from .assets import import_asset
         root=self.path(job_id);job=self.job(job_id);p=job['request'];self.update(job_id,stage='reconstruction')
         run=reconstruct_asset(p['method'],root/'image.png',root/'mask.png',root/'reconstruction',job['reconstruction_options'])
+        if not p.get('register_asset',True):
+            self.update(job_id,registered_asset=False);gc.collect();torch.cuda.empty_cache();return
         self.update(job_id,stage='asset_registration')
         # Axis proposals are explicitly provisional; names alone are user-confirmed.
         axes=dict(source_up=[0,0,1],source_forward=[0,-1,0]) if p['method']=='triposr' else dict(source_up=[0,1,0],source_forward=[0,0,1])

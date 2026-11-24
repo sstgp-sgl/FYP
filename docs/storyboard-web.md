@@ -59,3 +59,7 @@ python scripts/evaluate_edits.py --out outputs/p7-check-01
 ```
 
 额外加 `--language --key-file /outside/repository/private.key` 会执行 6 条真实 DeepSeek 请求（每条最多一次），会产生 API 费用。结果会分别报告 typed 与 language；测试用合成资产，不代表真实重建质量。任务及预期在 `evaluation/edits_p7.json`，输出目录需每次更换。网页的真实资产验收证据见 P7 报告。
+
+## 粤剧视频入口
+
+新增 `/video`，支持本地视频上传、最长180秒测试范围、镜头检测、关键帧增删改和原视频时间戳。关键帧可进入原 SAM 分割与 TripoSR 彩色重建流程；结果关联回该帧。部署时增加 `requirements-video.txt` 或指定 `FYP_FFMPEG`。详细步骤见 [粤剧视频说明](cantonese-video.md)。默认 `video_max_bytes` 为1GB；本地仅视频演示可设置 `video_only: true`。

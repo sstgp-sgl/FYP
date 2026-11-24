@@ -81,7 +81,7 @@ python scripts/reconstruct_asset.py --method triposr --color \
 
 输出为 `foreground.png`、`pointcloud.ply` 和 `run.json`，默认统一 120,000 点。TripoSR 的 `--color` 会保留模型预测 RGB，并输出彩色三角网格 `mesh.ply` 和可旋转、带光照、可导出 PNG 的 `viewer.html`；不做 UV 纹理烘焙。Hunyuan 仍为灰色纯几何。模型安装、参数和限制见 [重建模块说明](docs/reconstruction-methods.md)。
 
-同一熊图已完成真实彩色重建及网页验收，结果和限制见 [TripoSR 彩色渲染验证](docs/progress/TripoSR_color_20261124.md)。粤剧人物关键帧和场景时间轴尚未实现。
+同一熊图已完成真实彩色重建及网页验收，结果和限制见 [TripoSR 彩色渲染验证](docs/progress/TripoSR_color_20261124.md)。新增粤剧视频关键帧与镜头时间轴，操作见 [粤剧视频说明](docs/cantonese-video.md)。
 
 ## 4. 查看 P8 方法比较
 
@@ -103,3 +103,7 @@ python -m pytest -q tests/storyboard
 ```
 
 P8 冻结代码的 HPC 全量回归为 **359 passed，1 warning**。P7 受控编辑验收见 [P7](docs/progress/P7.md)，P6 真实网页流程见 [P6 报告](docs/progress/P6.md)。自动测试不能代替 GPU 重建质量评估。点云、照片、模型权重、运行目录和密钥不上传 GitHub；P9 尚未开始。当前能力、限制及后续事项见 [项目能力说明](docs/current-capabilities.md)。
+
+### 粤剧视频入口
+
+启动网页后打开 `/video`：上传视频 → 选择最长三分钟片段 → 镜头时间轴 → 调整关键帧 → 选择演员 → TripoSR 彩色重建。安装视频工具：`python -m pip install -r requirements-video.txt`。详细步骤、恢复方式与限制见 [粤剧视频说明](docs/cantonese-video.md)。

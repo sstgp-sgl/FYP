@@ -1,0 +1,2 @@
+# Add to requirements-storyboard.txt; supplies FFmpeg when no system binary exists.
+imageio-ffmpeg>=0.6,<1

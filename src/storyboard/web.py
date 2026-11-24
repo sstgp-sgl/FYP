@@ -23,6 +23,7 @@ class AssetRequest(Request):
     name:str=Field(min_length=1,max_length=50)
     name_confirmed:bool
     method:str
+    register_asset:bool=True
 class EditRequest(Request):
     base_version:int=Field(ge=1)
     patch:dict|None=None
@@ -43,9 +44,11 @@ def create_app(settings,provider_factory=None,executors=None,start=True):
         return HTTPException(400,str(exc))
     @app.get('/')
     def index():return FileResponse(Path(__file__).resolve().parents[2]/'web/storyboard/index.html')
+    from .video_routes import install_video_routes
+    install_video_routes(app,store,error,settings)
     @app.get('/api/p6/config')
     def config():return dict(methods=list(settings.get('reconstruction',{}).get('methods',{})),provisional=True,
-        uploads_enabled=settings.get('uploads_enabled',True),runtime_notice=settings.get('runtime_notice',''))
+        uploads_enabled=settings.get('uploads_enabled',True),video_only=settings.get('video_only',False),runtime_notice=settings.get('runtime_notice',''))
     @app.get('/api/p6/assets')
     def assets():return [dict(key=a['key'],name=a['name'],asset_id=a['asset_id'],instance_id=a['instance_id'],orientation=a.get('orientation','proposed'),source_job=a.get('source_job')) for a in store.assets()]
     @app.post('/api/p6/uploads')
@@ -64,6 +67,7 @@ def create_app(settings,provider_factory=None,executors=None,start=True):
         except (OSError,ValueError):raise HTTPException(410,'上传图片丢失或改变')
         return FileResponse(safe,media_type='image/png')
     def submit(kind,body):
+        if settings.get('video_only') and kind in {'segment','asset','story'}:raise HTTPException(409,'本地视频演示不执行模型，请打开 HPC GPU 网页')
         data=body.model_dump(mode='json');request_id=data.pop('request_id')
         try:
             job,created=store.submit(kind,request_id,data)
