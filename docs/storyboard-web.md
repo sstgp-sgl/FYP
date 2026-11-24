@@ -38,6 +38,8 @@ python scripts/serve_storyboard.py \
 
 ## 产物与恢复
 
+TripoSR 新任务可在 `reconstruction.methods.triposr` 配置 `"gray": false`，保留模型预测 RGB。重建成功后，“当前任务”会出现“打开三维网格”入口，可直接旋转、缩放、开关光照、比较灰色显示并导出 PNG。ZIP 包含 `reconstruction/mesh.ply`、`pointcloud.ply`、`viewer.html` 和 `run.json`。颜色为模型预测，未做 UV 图集；旧灰色资产需要新建重建任务。Hunyuan 仍为纯几何。
+
 每个任务保存到 `state/jobs/<job_id>/`，故事通常在 `pipeline/attempt_00/compiled/` 保存三幕图片、场景 JSON 与验证记录；修复重试可能产生更多 attempt，以 run.json 的 accepted_attempt 为准。上传和新资产分别保存在状态目录 uploads/ 与资产库中。
 
 网页轮询状态，刷新可恢复历史。请求 ID 相同且输入相同时返回同一任务；输入不同返回 409。重启后未结束任务标为 interrupted，不自动重复收费调用；部分失败保留已有图。ZIP 只打包登记的产物和任务元数据，冻结资产、深度/ID 数组仍在服务器，不是完整离线复现包。

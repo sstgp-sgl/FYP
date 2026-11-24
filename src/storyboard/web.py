@@ -115,4 +115,16 @@ def create_app(settings,provider_factory=None,executors=None,start=True):
             path=store.archive(job_id.hex)
             return FileResponse(path,filename='storyboard-'+job_id.hex+'.zip',background=BackgroundTask(path.unlink,missing_ok=True))
         except Exception as exc:raise error(exc)
+    @app.get('/api/p6/jobs/{job_id}/viewer/{name}')
+    def mesh_viewer(job_id:UUID,name:str):
+        if name not in {'viewer.html','mesh.ply','pointcloud.ply','run.json'}:raise HTTPException(404,'未知查看器文件')
+        try:
+            import hashlib
+            row=store.collect(job_id.hex)
+            if row['kind']!='asset':raise FileNotFoundError('此任务没有三维网格')
+            key=hashlib.sha256(('reconstruction/'+name).encode()).hexdigest()[:24]
+            path=store.artifact_path(job_id.hex,key)
+            media='text/html' if name=='viewer.html' else 'application/json' if name=='run.json' else 'application/octet-stream'
+            return FileResponse(path,media_type=media)
+        except Exception as exc:raise error(exc)
     return app

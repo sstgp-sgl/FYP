@@ -207,3 +207,8 @@ def test_reconstruction_files_are_registered_only_after_color_export_finishes(se
         assert {'mesh.ply','viewer.html','run.json'}<={a['name'] for a in final['artifacts']}
         mesh=next(a for a in final['artifacts'] if a['name']=='mesh.ply')
         assert client.get(f'/api/p6/jobs/{job_id}/artifacts/'+mesh['id']).status_code==200
+        viewer=client.get(f'/api/p6/jobs/{job_id}/viewer/viewer.html')
+        assert viewer.status_code==200 and viewer.headers['content-type'].startswith('text/html')
+        assert 'attachment' not in viewer.headers.get('content-disposition','')
+        assert client.get(f'/api/p6/jobs/{job_id}/viewer/mesh.ply').status_code==200
+        assert client.get(f'/api/p6/jobs/{job_id}/viewer/settings.json').status_code==404
